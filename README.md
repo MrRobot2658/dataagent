@@ -2,9 +2,12 @@
 
 基于 [方案文档](./docs/多租户实时ID-Mapping%20+%20画像水平伸缩方案.md) 搭建的本地 Docker Compose 开发环境。
 
+**仓库**：https://github.com/MrRobot2658/datalake
+
 > **生产设计文档**：[docs/design.md](./docs/design.md)（Kafka / Flink / MySQL / Doris 宽表）  
 > **规模扩展对照**：[docs/scale-comparison.md](./docs/scale-comparison.md)（dev → 2亿）  
-> **Flink Job 模板**：[docs/flink/](./docs/flink/README.md)
+> **Flink Job 模板**：[docs/flink/](./docs/flink/README.md)  
+> **MCP 调用链路**：[docs/MCP调用链路.md](./docs/MCP调用链路.md)（自然语言 → 链式多跳 / 边条件 DSL → SQL → Doris，含只读 MCP）
 
 ## 架构
 
@@ -43,9 +46,14 @@
 | `/SQL Engine` | SQL Engine Swagger → `/docs` |
 | `/nl-query` 等 | SQL Engine API 根路径直通（Swagger Try it out 兼容） |
 
-## 快速启动
+## 快速开始
 
 ```bash
+# 0. 克隆仓库
+git clone git@github.com:MrRobot2658/datalake.git      # SSH
+# 或 HTTPS: git clone https://github.com/MrRobot2658/datalake.git
+cd datalake
+
 # 1. 启动全部服务（默认 dev 规模）
 docker compose up -d --build
 
