@@ -11,16 +11,40 @@
 
 ## 架构
 
+目标架构（[CDP 优化方案 V3.0-06](./docs/CDP优化方案V3.0-06.pdf) · 图 1 · 数据链路层级，自上而下）。
+本地 dev 环境用 ID-Mapping 服务 + MySQL 模拟 Flink/Doris；StreamPark / DolphinScheduler / Doris 为生产目标组件。
+
 ```
-用户行为事件
-    │
-    ▼
-┌─────────┐     ┌──────────────────┐     ┌─────────┐
-│  Kafka  │ ──▶ │  ID-Mapping 服务  │ ──▶ │  Redis  │  热层 (<1ms)
-│ (多租户) │     │  (模拟 Flink Job) │     └─────────┘
-└─────────┘     │                  │     ┌─────────┐
-                │                  │ ──▶ │  MySQL  │  冷层 + 业务库
-                └──────────────────┘     └─────────┘
+图 1 · 数据链路层级（接入 → Kafka → Flink → MySQL → Doris）
+
+  ┌─ L1 · 接入层（数据入口）
+  │    小程序 / 企微 / 表单 / App / 批量导入 API
+  │    统一封装为 UserEvent(tenant_id + channel + link_keys + properties)
+  ▼
+  ┌─ L2 · Kafka 消息层（事件总线）
+  │    tenant-{id}-events（大租户独立 Topic） · shared-tenant-events（微租户共享）
+  │    按 tenant_id / channel_id 分区，保证同一用户事件有序
+  ▼
+  ┌─ L3 · Flink 实时计算层（StreamPark 管控）
+  │    Job-1 ID-Mapping(OneID 识别 / merge) → Job-2 画像聚合 → Job-3 宽表打宽
+  │    输出 enriched-events，并行写入下游存储
+  ▼
+  ┌─ L3+ · Redis 热层（旁路，< 5ms 点查）
+  │    Flink Job-1 同步写入 channel → one_id 映射，供实时识别 / 热点查询
+  ▼
+  ┌─ L4 · MySQL 业务冷层（持久化 / 审计）
+  │    one_id 发号器 · id_mapping 离线导入 · merge_log 合并审计 · 租户配置
+  ▼
+  └─ L5 · Doris OLAP 层（画像 / 圈选）
+       id_mapping · user_profile · user_wide
+       大租户独立库 + BE Tag，小租户共享库 tenant_id 分区
+
+  ── 查询层（只读）──────────────────────────────────────────────
+     SQL Engine + CDP Agent ← 业务应用 / MA / BI；模板查询 → Doris / Redis
+
+  ── 调度管控层（K8s 部署）─────────────────────────────────────
+     StreamPark：Flink 实时 Job 启停扩缩
+     DolphinScheduler：离线导入 / 批标签 / 数据同步 / Doris 运维
 ```
 
 ## 组件
