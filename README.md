@@ -1,8 +1,8 @@
-# AgenticDataHub · 多租户实时客户数据中枢（Agentic CDP）
+# AgenticDataHub · 智能实时数据底座
 
-**AgenticDataHub** 是一套本地可跑的**智能客户数据中枢**：后端是**多租户实时 ID-Mapping + OneID 画像宽表 + 圈人引擎**，并内置 **AI Agent**（自然语言圈人 + 只读 MCP 工具）；前端是**对标 [Twilio Segment](https://www.twilio.com/docs/segment) 的控制台**（连接 → 统一 → 触达 → 协议 → 隐私 → 监控）。
+**AgenticDataHub** 的产品定位是**智能实时数据底座**——一套以 AI Agent 为操作入口、可直接落地业务的实时数据基础设施。**多租户隔离、实时 ID-Mapping / OneID 归一、统一画像宽表、圈人激活、数据治理与隐私合规**都是构建在这个底座之上的**功能**。开箱即带一套**对标 [Twilio Segment](https://www.twilio.com/docs/segment) 的控制台**作为应用层（连接 → 统一 → 触达 → 协议 → 隐私 → 监控）。
 
-> **名字含义**：**Agentic** —— DeepSeek 驱动的自然语言圈人/查询与 MCP 工具，让 LLM 安全地操作数据（候选 DSL 必须过校验层，绝不直出 SQL）；**DataHub** —— 把小程序/企微/表单/App/批量导入等多渠道身份，实时归一为 OneID 并打宽成统一画像的中枢。
+> **名字含义**：**Agentic** —— DeepSeek 驱动的自然语言圈人/查询与 MCP 工具，让 LLM 安全地操作数据底座（候选 DSL 必须过校验层，绝不直出 SQL）；**DataHub** —— 把小程序/企微/表单/App/批量导入等多渠道数据，实时归一为 OneID 并打宽成统一画像的数据中枢。
 
 **仓库**：https://github.com/MrRobot2658/agenticdatahub
 
