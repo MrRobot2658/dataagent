@@ -27,7 +27,7 @@ from objects import ObjectError, ObjectService
 
 class SourceCreate(BaseModel):
     source_name: str
-    source_type: str = Field(description="连接器类型：csv/api/javascript/kafka · mysql/postgres/sqlserver/oracle/clickhouse/mongodb/elasticsearch · snowflake/bigquery/redshift · iceberg/delta/s3")
+    source_type: str = Field(description="连接器类型（见 frontend lib/connectors）：文件/流/数据库/数仓/数据湖/查询引擎/对象存储，如 csv/kafka/mysql/postgres/clickhouse/mongodb/snowflake/bigquery/iceberg/delta/s3/trino/oss/pulsar 等")
     config: dict[str, Any] = Field(default_factory=dict)
     schema_def: dict[str, Any] | None = Field(default=None, alias="schema")
 

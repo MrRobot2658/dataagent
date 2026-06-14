@@ -2,11 +2,12 @@
 // 与后端 connections_api 的 source_type / warehouse_type 字符串对齐；新增连接器只加目录、不动连接逻辑。
 import {
   FileSpreadsheet, Database, Radio, Cloud, Code, Server, Zap, Leaf, Search,
-  Snowflake, Warehouse, Layers, Triangle, HardDrive, type LucideIcon,
+  Snowflake, Warehouse, Layers, Triangle, HardDrive,
+  Boxes, Network, Flame, Container, Archive, Rss, Rabbit, Waves, type LucideIcon,
 } from "lucide-react";
 
 export type ConnectorSurface = "source" | "warehouse";
-export type ConnectorCategory = "file" | "api" | "streaming" | "database" | "warehouse" | "lake" | "object";
+export type ConnectorCategory = "file" | "api" | "streaming" | "database" | "warehouse" | "lake" | "query" | "object";
 
 export interface Connector {
   key: string;
@@ -41,11 +42,46 @@ export const CONNECTORS: Connector[] = [
   { key: "delta", label: "Delta Lake", icon: Triangle, category: "lake", surfaces: ["source", "warehouse"] },
   // 对象存储
   { key: "s3", label: "Amazon S3", icon: HardDrive, category: "object", surfaces: ["source"] },
+
+  // ── Phase 2 ────────────────────────────────────────────────────────────────
+  // 数据库（OLTP / 分布式）
+  { key: "mariadb", label: "MariaDB", icon: Database, category: "database", surfaces: ["source", "warehouse"] },
+  { key: "tidb", label: "TiDB", icon: Boxes, category: "database", surfaces: ["source", "warehouse"] },
+  { key: "oceanbase", label: "OceanBase", icon: Boxes, category: "database", surfaces: ["source", "warehouse"] },
+  // NoSQL
+  { key: "redis", label: "Redis", icon: Zap, category: "database", surfaces: ["source"] },
+  { key: "cassandra", label: "Cassandra", icon: Network, category: "database", surfaces: ["source"] },
+  { key: "dynamodb", label: "Amazon DynamoDB", icon: Database, category: "database", surfaces: ["source"] },
+  // 数仓 / OLAP
+  { key: "databricks", label: "Databricks SQL", icon: Flame, category: "warehouse", surfaces: ["source", "warehouse"] },
+  { key: "starrocks", label: "StarRocks", icon: Warehouse, category: "warehouse", surfaces: ["source", "warehouse"] },
+  { key: "greenplum", label: "Greenplum", icon: Warehouse, category: "warehouse", surfaces: ["source", "warehouse"] },
+  // 数据湖（表格式）
+  { key: "hudi", label: "Apache Hudi", icon: Layers, category: "lake", surfaces: ["source", "warehouse"] },
+  { key: "paimon", label: "Apache Paimon", icon: Layers, category: "lake", surfaces: ["source", "warehouse"] },
+  // 查询引擎 / 联邦
+  { key: "trino", label: "Trino / Presto", icon: Network, category: "query", surfaces: ["source", "warehouse"] },
+  { key: "athena", label: "AWS Athena", icon: Search, category: "query", surfaces: ["source", "warehouse"] },
+  // 对象存储
+  { key: "gcs", label: "Google Cloud Storage", icon: Cloud, category: "object", surfaces: ["source"] },
+  { key: "adls", label: "Azure Data Lake (ADLS)", icon: Cloud, category: "object", surfaces: ["source"] },
+  { key: "minio", label: "MinIO", icon: Container, category: "object", surfaces: ["source"] },
+  { key: "oss", label: "阿里云 OSS", icon: Archive, category: "object", surfaces: ["source"] },
+  { key: "cos", label: "腾讯云 COS", icon: HardDrive, category: "object", surfaces: ["source"] },
+  // 流 / 消息
+  { key: "pulsar", label: "Apache Pulsar", icon: Rss, category: "streaming", surfaces: ["source"] },
+  { key: "rabbitmq", label: "RabbitMQ", icon: Rabbit, category: "streaming", surfaces: ["source"] },
+  { key: "kinesis", label: "Amazon Kinesis", icon: Waves, category: "streaming", surfaces: ["source"] },
+  // 国产云数仓
+  { key: "maxcompute", label: "阿里云 MaxCompute", icon: Cloud, category: "warehouse", surfaces: ["source", "warehouse"] },
+  { key: "hologres", label: "阿里云 Hologres", icon: Warehouse, category: "warehouse", surfaces: ["source", "warehouse"] },
+  { key: "analyticdb", label: "阿里云 AnalyticDB", icon: Warehouse, category: "warehouse", surfaces: ["source", "warehouse"] },
+  { key: "gaussdb", label: "华为 GaussDB / DWS", icon: Cloud, category: "warehouse", surfaces: ["source", "warehouse"] },
 ];
 
 export const connectorByKey = (k: string): Connector | undefined => CONNECTORS.find((c) => c.key === k);
 
-const CATEGORY_ORDER: ConnectorCategory[] = ["file", "api", "streaming", "database", "warehouse", "lake", "object"];
+const CATEGORY_ORDER: ConnectorCategory[] = ["file", "api", "streaming", "database", "warehouse", "lake", "query", "object"];
 
 export function categoryLabel(c: ConnectorCategory, tr: (zh: string, en?: string) => string): string {
   const m: Record<ConnectorCategory, [string, string]> = {
@@ -55,6 +91,7 @@ export function categoryLabel(c: ConnectorCategory, tr: (zh: string, en?: string
     database: ["数据库", "Databases"],
     warehouse: ["数据仓库", "Warehouses"],
     lake: ["数据湖 / 湖仓", "Data Lakes"],
+    query: ["查询引擎 / 联邦", "Query / Federation"],
     object: ["对象存储", "Object Storage"],
   };
   return tr(...m[c]);
