@@ -2,23 +2,32 @@ import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { HOME, SECTIONS, FOOTER_SECTION, type NavChild, type NavSection } from "../../lib/nav";
+import { useLang } from "../../context/LangContext";
 
 const rowBase =
   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors";
 const active = "bg-brand-50 text-brand-700 font-semibold";
 const idle = "text-gray-600 hover:bg-gray-100 hover:text-gray-900";
 
+// 按当前语言取菜单文案：中文用 label，英文用 term（缺省回退 label）
+function useNavText() {
+  const { lang } = useLang();
+  return (item: { label: string; term?: string }) =>
+    lang === "en" ? (item.term ?? item.label) : item.label;
+}
+
 function TopItem({ item }: { item: NavChild }) {
+  const txt = useNavText();
   return (
     <NavLink to={item.to} end className={({ isActive }) => `${rowBase} ${isActive ? active : idle}`}>
       <item.icon className="h-[18px] w-[18px] shrink-0" />
-      <span className="flex-1">{item.label}</span>
-      {item.term && <span className="text-[11px] font-normal text-gray-400">{item.term}</span>}
+      <span className="flex-1">{txt(item)}</span>
     </NavLink>
   );
 }
 
 function ChildItem({ item }: { item: NavChild }) {
+  const txt = useNavText();
   return (
     <NavLink
       to={item.to}
@@ -30,8 +39,7 @@ function ChildItem({ item }: { item: NavChild }) {
       }
     >
       <item.icon className="h-4 w-4 shrink-0" />
-      <span className="flex-1">{item.label}</span>
-      <span className="text-[10px] text-gray-400">{item.term}</span>
+      <span className="flex-1">{txt(item)}</span>
     </NavLink>
   );
 }
@@ -40,6 +48,7 @@ function ChildItem({ item }: { item: NavChild }) {
 // 当路由进入本分区时自动展开；之后尊重用户的手动开合。
 function CollapsibleSection({ section, sectionActive }: { section: NavSection; sectionActive: boolean }) {
   const [open, setOpen] = useState(sectionActive);
+  const txt = useNavText();
   useEffect(() => {
     if (sectionActive) setOpen(true);
   }, [sectionActive]);
@@ -52,8 +61,7 @@ function CollapsibleSection({ section, sectionActive }: { section: NavSection; s
         className={`${rowBase} w-full text-left ${sectionActive ? active : idle}`}
       >
         <section.icon className="h-[18px] w-[18px] shrink-0" />
-        <span className="flex-1 font-medium">{section.label}</span>
-        <span className="text-[11px] font-normal text-gray-400">{section.term}</span>
+        <span className="flex-1 font-medium">{txt(section)}</span>
         <ChevronDown
           className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
         />
@@ -76,6 +84,7 @@ function Section({ section, sectionActive }: { section: NavSection; sectionActiv
 
 export default function Sidebar() {
   const { pathname } = useLocation();
+  const { t } = useLang();
   return (
     <aside className="hidden w-64 shrink-0 border-r border-gray-200 bg-white lg:flex lg:flex-col">
       <div className="flex h-16 items-center gap-2.5 border-b border-gray-200 px-5">
@@ -86,14 +95,14 @@ export default function Sidebar() {
         </div>
         <div>
           <div className="text-sm font-bold tracking-tight text-gray-900">Segment</div>
-          <div className="text-[11px] text-gray-400">CDP · 客户数据平台</div>
+          <div className="text-[11px] text-gray-400">{t("brandSub")}</div>
         </div>
       </div>
 
       <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
         <TopItem item={HOME} />
         <div className="!mt-3 mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-          Workspace
+          {t("workspace")}
         </div>
         {SECTIONS.map((s) => (
           <Section key={s.to} section={s} sectionActive={pathname === s.to || pathname.startsWith(s.to + "/")} />
@@ -107,7 +116,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="border-t border-gray-200 px-5 py-3 text-[11px] text-gray-400">
-        sql-engine · DSL 引擎
+        {t("footer")}
       </div>
     </aside>
   );

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { TenantProvider } from "./context/TenantContext";
+import { LangProvider } from "./context/LangContext";
 import Dashboard from "./pages/Dashboard";
 import FilterPage from "./pages/FilterPage";
 import EtlPage from "./pages/EtlPage";
@@ -63,6 +64,7 @@ const BASENAME = import.meta.env.PROD ? "/console" : "/";
 
 export default function App() {
   return (
+    <LangProvider>
     <TenantProvider>
       <BrowserRouter basename={BASENAME}>
         <Routes>
@@ -146,5 +148,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </TenantProvider>
+    </LangProvider>
   );
 }
