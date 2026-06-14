@@ -10,6 +10,16 @@ import type {
 // 开发态 baseURL 走 vite 代理 /api → sql-engine；生产同源由 nginx 转发。
 export const http = axios.create({ baseURL: "/api", timeout: 45000 });
 
+// 登录态：每次请求自动携带 Bearer token（由 AuthContext 写入 localStorage）。
+http.interceptors.request.use((config) => {
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("cdp_token") : null;
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export async function getMetadata(tenant: number): Promise<Metadata> {
   const { data } = await http.get(`/metadata/${tenant}/fields`);
   return data;

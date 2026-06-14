@@ -1,6 +1,9 @@
+import { type ReactNode } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { TenantProvider } from "./context/TenantContext";
 import { LangProvider } from "./context/LangContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import FilterPage from "./pages/FilterPage";
 import EtlPage from "./pages/EtlPage";
@@ -63,12 +66,36 @@ import SettingsMcpPage from "./pages/segment/SettingsMcpPage";
 // 生产挂在 /console 下，dev 用根路径
 const BASENAME = import.meta.env.PROD ? "/console" : "/";
 
+// 登录硬门禁：未登录跳 /login；鉴权状态未就绪时显示加载中。
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, ready } = useAuth();
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-brand-500" />
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
-    <LangProvider>
     <TenantProvider>
+    <LangProvider>
+    <AuthProvider>
       <BrowserRouter basename={BASENAME}>
         <Routes>
+          {/* 公共路由：登录页 */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* 受保护应用：全部走登录门禁 */}
+          <Route
+            path="/*"
+            element={
+              <RequireAuth>
+                <Routes>
           {/* Overview */}
           <Route path="/" element={<Dashboard />} />
 
@@ -147,9 +174,14 @@ export default function App() {
           <Route path="/objects/:key" element={<ObjectListPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </RequireAuth>
+            }
+          />
         </Routes>
       </BrowserRouter>
-    </TenantProvider>
+    </AuthProvider>
     </LangProvider>
+    </TenantProvider>
   );
 }

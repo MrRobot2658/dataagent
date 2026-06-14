@@ -1,6 +1,8 @@
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, LogOut, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useTenant } from "../../context/TenantContext";
 import { useLang, type Lang } from "../../context/LangContext";
+import { useAuth } from "../../context/AuthContext";
 import AssistantWidget from "../assistant/AssistantWidget";
 
 // 语言切换：中 / EN 分段开关
@@ -30,7 +32,10 @@ function LangSwitch() {
 
 export default function Header() {
   const { tenant, setTenant, tenants } = useTenant();
-  const { t } = useLang();
+  const { t, tr } = useLang();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const initial = (user?.name || user?.email || "A").charAt(0).toUpperCase();
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
       <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -53,8 +58,27 @@ export default function Header() {
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         </div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
-          A
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
+            {initial}
+          </div>
+          {user && (
+            <span className="hidden text-sm font-medium text-gray-700 sm:block">
+              {user.name || user.email}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+            title={tr("退出登录", "Log out")}
+            aria-label={tr("退出登录", "Log out")}
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </header>
