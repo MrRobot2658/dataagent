@@ -4,7 +4,7 @@
 
 **仓库**：https://github.com/MrRobot2658/datalake
 
-> 设计文档：[docs/design.md](./docs/design.md)（Kafka/Flink/MySQL/Doris 宽表）· [scale-comparison](./docs/scale-comparison.md)（dev→2亿）· [Flink Job 模板](./docs/flink/README.md) · [MCP 调用链路](./docs/MCP调用链路.md) · [前端说明](./frontend/README.md)
+> 设计文档：[模块产品文档](./docs/modules/README.md)（分模块 详细/技术设计 + TODOs）· [docs/design.md](./docs/design.md)（Kafka/Flink/MySQL/Doris 宽表）· [scale-comparison](./docs/scale-comparison.md)（dev→2亿）· [Flink Job 模板](./docs/flink/README.md) · [MCP 调用链路](./docs/MCP调用链路.md) · [前端说明](./frontend/README.md)
 
 ---
 
