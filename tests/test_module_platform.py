@@ -37,9 +37,9 @@ S.trust_env = False
 MYSQL_CONFIG = {
     "host": os.getenv("TEST_MYSQL_HOST", "localhost"),
     "port": int(os.getenv("TEST_MYSQL_PORT", "3308")),
-    "user": os.getenv("TEST_MYSQL_USER", "agenticdmp"),
-    "password": os.getenv("TEST_MYSQL_PASSWORD", "agenticdmp123"),
-    "database": os.getenv("TEST_MYSQL_DATABASE", "agenticdmp"),
+    "user": os.getenv("TEST_MYSQL_USER", "agenticdatahub"),
+    "password": os.getenv("TEST_MYSQL_PASSWORD", "agenticdatahub123"),
+    "database": os.getenv("TEST_MYSQL_DATABASE", "agenticdatahub"),
     "charset": "utf8mb4",
 }
 

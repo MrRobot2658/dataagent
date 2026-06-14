@@ -1,4 +1,4 @@
-USE agenticdmp;
+USE agenticdatahub;
 
 CREATE TABLE IF NOT EXISTS user_groups (
     tenant_id       BIGINT NOT NULL,

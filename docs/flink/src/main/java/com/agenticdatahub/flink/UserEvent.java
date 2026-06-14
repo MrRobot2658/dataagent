@@ -1,4 +1,4 @@
-package com.agenticdmp.flink;
+package com.agenticdatahub.flink;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

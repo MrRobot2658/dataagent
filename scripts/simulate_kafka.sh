@@ -10,9 +10,9 @@ echo "参数: $ARGS"
 echo ""
 
 docker run --rm \
-  --network agenticdmp_agenticdmp-net \
+  --network agenticdatahub_agenticdatahub-net \
   -v "$SCRIPT_DIR/simulate_channels.py:/app/simulate_channels.py:ro" \
-  agenticdmp-id-mapping \
+  agenticdatahub-id-mapping \
   python /app/simulate_channels.py $ARGS --bootstrap kafka:29092
 
 echo ""
