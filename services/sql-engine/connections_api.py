@@ -674,6 +674,7 @@ class ConnectionsService:
             result["scheduler"] = deploy_and_run(
                 tenant_id, row.get("pipeline_name") or pipeline_id,
                 row.get("nodes") or [], row.get("edges") or [], run=True,
+                pipeline_id=pipeline_id,
             )
             result["status"] = "running"
         except Exception as e:  # noqa: BLE001

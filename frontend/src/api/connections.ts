@@ -283,6 +283,7 @@ export interface SchedulerInfo {
   scheduler?: string;
   metadatabase?: string;
   dag_id?: string;
+  dag?: { dag_id?: string; is_paused?: boolean } | null;
   ui_url?: string;
   error?: string;
   dag_run?: { dag_run_id: string; state: string | null };
@@ -297,4 +298,22 @@ export async function executePipeline(tenant: number, pipelineId: string) {
 export async function schedulerHealth(): Promise<SchedulerInfo> {
   const { data } = await http.get(`/connections/scheduler/health`);
   return data;
+}
+
+export async function pauseScheduler(paused: boolean): Promise<{ dag_id: string; is_paused: boolean }> {
+  const { data } = await http.post(`/connections/scheduler/pause`, {}, { params: { paused } });
+  return data;
+}
+
+export interface PipelineRun {
+  dag_run_id: string;
+  state: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  logical_date?: string | null;
+}
+
+export async function pipelineRuns(pipelineId: string, limit = 20): Promise<PipelineRun[]> {
+  const { data } = await http.get(`/connections/pipelines/${pipelineId}/runs`, { params: { limit } });
+  return data.runs || [];
 }

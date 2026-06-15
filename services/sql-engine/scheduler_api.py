@@ -52,6 +52,35 @@ class AirflowClient:
         with self._client() as c:
             c.patch(f"{AIRFLOW_API}/dags/{dag_id}", json={"is_paused": False})
 
+    def set_paused(self, dag_id: str, paused: bool) -> dict:
+        with self._client() as c:
+            r = c.patch(f"{AIRFLOW_API}/dags/{dag_id}", json={"is_paused": paused})
+        if r.status_code != 200:
+            raise AfError(f"暂停/恢复失败（{r.status_code}）：{r.text[:200]}")
+        return {"dag_id": dag_id, "is_paused": r.json().get("is_paused", paused)}
+
+    def runs_for(self, dag_id: str, pipeline_id: str, limit: int = 20) -> list:
+        """拉取该 DAG 最近运行，按 dag_run_id 里编码的 pipeline_id 过滤出本管道的执行历史。"""
+        with self._client() as c:
+            r = c.get(f"{AIRFLOW_API}/dags/{dag_id}/dagRuns",
+                      params={"order_by": "-execution_date", "limit": 100})
+        if r.status_code != 200:
+            return []
+        marker = f"__{pipeline_id}__"
+        out = []
+        for run in (r.json().get("dag_runs") or []):
+            rid = run.get("dag_run_id", "")
+            if pipeline_id and marker not in rid:
+                continue
+            out.append({
+                "dag_run_id": rid, "state": run.get("state"),
+                "start_date": run.get("start_date"), "end_date": run.get("end_date"),
+                "logical_date": run.get("logical_date"),
+            })
+            if len(out) >= limit:
+                break
+        return out
+
     def trigger(self, dag_id: str, conf: dict, run_id: str) -> dict:
         with self._client() as c:
             r = c.post(f"{AIRFLOW_API}/dags/{dag_id}/dagRuns",
@@ -77,7 +106,24 @@ def scheduler_health():
     return _client.health()
 
 
-def deploy_and_run(tenant_id: int, pipeline_name: str, nodes: list, edges: list, run: bool = True) -> dict:
+@router.post("/scheduler/pause")
+def scheduler_pause(paused: bool = True):
+    """暂停/恢复调度（切换共享 DAG agenticdatahub_pipeline 的 is_paused）。
+    注意：所有管道共用一个 DAG，故这是全局调度开关。"""
+    return _client.set_paused(AIRFLOW_DAG_ID, paused)
+
+
+@router.get("/pipelines/{pipeline_id}/runs")
+def pipeline_runs(pipeline_id: str, limit: int = 20):
+    """某管道在 Airflow 上的执行历史（按 dag_run_id 编码的 pipeline_id 过滤）。"""
+    try:
+        return {"runs": _client.runs_for(AIRFLOW_DAG_ID, pipeline_id, limit)}
+    except Exception as e:  # noqa: BLE001
+        return {"runs": [], "error": str(e)}
+
+
+def deploy_and_run(tenant_id: int, pipeline_name: str, nodes: list, edges: list,
+                   run: bool = True, pipeline_id: str | None = None) -> dict:
     """供 connections_api 的 execute_pipeline 调用：触发 Airflow DAG 运行该 pipeline。"""
     out: dict = {"engine": "airflow", "reachable": True, "ui_url": AIRFLOW_UI, "dag_id": AIRFLOW_DAG_ID}
     # 把节点列表（精简后）放进 conf，DAG 据此动态展开为多任务；上限 100 个，控制 conf 体积
@@ -86,16 +132,16 @@ def deploy_and_run(tenant_id: int, pipeline_name: str, nodes: list, edges: list,
         "type": n.get("type"), "kind": n.get("kind"),
     } for n in (nodes or [])][:100]
     conf = {
-        "tenant_id": tenant_id, "pipeline_name": pipeline_name,
+        "tenant_id": tenant_id, "pipeline_id": pipeline_id, "pipeline_name": pipeline_name,
         "nodes": conf_nodes, "node_count": len(nodes or []), "edge_count": len(edges or []),
     }
     try:
-        self_unpause = _client.ensure_unpaused
-        self_unpause(AIRFLOW_DAG_ID)  # 幂等，确保 DAG 启用
+        _client.ensure_unpaused(AIRFLOW_DAG_ID)  # 幂等，确保 DAG 启用
     except Exception:  # noqa: BLE001
         pass
     if run:
-        run_id = f"adh__{tenant_id}__{int(time.time() * 1000)}"
+        # run_id 编码 pipeline_id，便于按管道过滤执行历史
+        run_id = f"adh__{tenant_id}__{pipeline_id or 'p'}__{int(time.time() * 1000)}"
         out["dag_run"] = _client.trigger(AIRFLOW_DAG_ID, conf, run_id)
         out["ui_url"] = f"{AIRFLOW_UI}/dags/{AIRFLOW_DAG_ID}/grid"
     return out
