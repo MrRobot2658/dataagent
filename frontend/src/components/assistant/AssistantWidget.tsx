@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Send } from "lucide-react";
+import { Sparkles, X, Send, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Spinner } from "../ui";
 import { useLang } from "../../context/LangContext";
 import { useTenant } from "../../context/TenantContext";
@@ -9,6 +10,7 @@ import {
   type ChatMessage,
   type ChatStep,
   type ChatTask,
+  type ChatCreated,
 } from "../../api/assistant";
 
 interface UiMessage {
@@ -16,6 +18,8 @@ interface UiMessage {
   content: string;
   steps?: ChatStep[];
   task?: ChatTask | null;
+  agentName?: string;
+  created?: ChatCreated | null;
 }
 
 export default function AssistantWidget() {
@@ -73,7 +77,7 @@ export default function AssistantWidget() {
       const res = await chatAssistant(tenant, payload);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: res.reply, steps: res.steps, task: res.task },
+        { role: "assistant", content: res.reply, steps: res.steps, task: res.task, agentName: res.agent_name, created: res.created },
       ]);
       if (res.task?.run_id) pollTask(res.task.run_id);
     } catch (e: any) {
@@ -132,7 +136,22 @@ export default function AssistantWidget() {
                       : "bg-gray-100 text-gray-800"
                   }`}
                 >
+                  {m.role === "assistant" && m.agentName && (
+                    <div className="mb-1 inline-flex items-center rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
+                      {tr("智能体", "Agent")} · {m.agentName}
+                    </div>
+                  )}
                   <div className="whitespace-pre-wrap break-words">{m.content}</div>
+                  {m.created && (
+                    <Link
+                      to={m.created.path}
+                      onClick={() => setOpen(false)}
+                      className="mt-2 inline-flex items-center gap-1 rounded-lg bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700 ring-1 ring-inset ring-brand-200 hover:bg-brand-100"
+                    >
+                      {m.created.kind === "dashboard" ? tr("打开看板", "Open dashboard") : tr("打开分析", "Open analytics")} · {m.created.title}
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  )}
                   {m.steps && m.steps.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {m.steps.map((s, j) => (

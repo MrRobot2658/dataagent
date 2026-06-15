@@ -23,10 +23,20 @@ export interface ChatTask {
   task_name: string;
 }
 
+export interface ChatCreated {
+  kind: "chart" | "dashboard";
+  id: string;
+  title: string;
+  path: string;
+}
+
 export interface ChatResponse {
   reply: string;
   steps: ChatStep[];
   task: ChatTask | null;
+  agent?: string;
+  agent_name?: string;
+  created?: ChatCreated | null;
 }
 
 export interface AssistantTask {

@@ -219,6 +219,20 @@
 - [ ] [前端] `DataTable` 升级：分页、排序、列配置、CSV 导出。
 - [ ] [前端] 把 `mock/data.ts` 按模块拆分，便于各模块独立维护。
 
+## 智能助手（多智能体）
+
+控制台右上角常驻的对话助手，独立服务 `services/assistant`（`:8004`，compose `assistant`），经 nginx `/assistant/*` 暴露；前端 `components/assistant/AssistantWidget.tsx` + `api/assistant.ts`。
+
+- **多智能体架构**：`/chat` 先由**路由器**（DeepSeek 分类，失败降级关键词）判定意图，分派给专职智能体，各有独立系统提示与工具集：
+  - **data 数据查询** —— 桥接 CDP **MCP server**（stdio，`services/mcp/server.py`）的 41 个只读 `cdp_*` 工具。
+  - **analyst 分析** —— 本地工具 `create_chart` / `create_dashboard`，调 sql-engine `/analyst/charts/nl`、`/analyst/dashboards/nl` 落库（回复带「打开看板」直链）。
+  - **task 任务** —— `publish_task`，接 reverse-ETL 调度模拟后台运行。
+  - **general 通用** —— 产品答疑（无工具）。
+- 响应含 `agent` / `agent_name`（前端显示「智能体 · X」标识）、`steps`（工具调用轨迹）、`task`、`created`（新建图表/看板 + 跳转路径）。
+- 端点：`POST /chat`、`GET /health`（含 agents 列表）、`GET /agents`、`GET /mcp/tools`（设置 → MCP 设置页展示）、`GET /tasks`。
+- 降级：无 `DEEPSEEK_API_KEY` 或出错时返回友好提示，绝不 500。
+
+> 真实 vs Mock：**全真实**（对话、MCP 查询、建图表看板、发任务均落地）。
 
 ---
 

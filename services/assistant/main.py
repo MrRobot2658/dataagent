@@ -1,17 +1,17 @@
-"""AgenticDataHub「智能助手」聊天后端。
+"""AgenticDataHub「智能助手」聊天后端（多智能体）。
 
-职责：
-  1) 调 DeepSeek（OpenAI 兼容 chat/completions + function-calling）。
-  2) 桥接已有的 CDP MCP server（stdio），把 MCP 只读工具暴露给 LLM 调用。
-  3) 「发布任务」：调 sql-engine 的 reverse-ETL 调度模拟，后台跑批并回写状态。
+架构：路由器（router）先判定意图，分派给专职智能体，各智能体有自己的系统提示与工具集：
+  - data    数据查询：桥接 CDP MCP 只读工具（schema/search/estimate/画像/受众…）。
+  - analyst 分析：创建图表 / 看板（调 sql-engine 的 NL 分析端点）。
+  - task    任务：发布后台任务（reverse-ETL 调度模拟）。
+  - general 通用：产品介绍 / 答疑 / 闲聊（无工具）。
 
 设计要点：
-  - LLM 只通过工具读「智能实时数据底座」，不直接写。
-  - 一次 /chat 只开一个 MCP ClientSession，在整个 tool-call 循环里复用。
-  - MCP 不可用 / 无 DeepSeek Key 时降级，绝不 500，返回友好提示。
+  - LLM 只通过工具读「智能实时数据底座」，写操作（建图表/看板/任务）走受控端点。
+  - 仅 data 智能体需要开 MCP 会话；其余本地工具直连 sql-engine。
+  - 无 DeepSeek Key / 出错时降级，绝不 500，返回友好提示。
 """
 
-import asyncio
 import json
 import os
 import sys
@@ -37,21 +37,43 @@ MCP_SQL_ENGINE_URL = os.getenv("MCP_SQL_ENGINE_URL", SQL_ENGINE_URL)
 
 MAX_TOOL_ITERS = 5
 
-# ── 模块级缓存 / 内存态 ─────────────────────────────────────────────────────
-_TOOL_SCHEMA_CACHE: list[dict] | None = None  # /mcp/tools 用：首次成功后缓存工具 schema 列表
-_TASK_STORE: list[dict] = []  # 后台任务，最近的在前
+_TOOL_SCHEMA_CACHE: list[dict] | None = None
+_TASK_STORE: list[dict] = []
 
-app = FastAPI(title="AgenticDataHub 智能助手")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# ── 智能体定义 ──────────────────────────────────────────────────────────────
+AGENT_DEFS: dict[str, dict] = {
+    "data":    {"name": "数据查询", "desc": "查询底座数据：用户/线索/客户/订单/受众/标签/画像等"},
+    "analyst": {"name": "分析",     "desc": "创建图表或看板、出指标分布（电商/线索/客户等）"},
+    "task":    {"name": "任务",     "desc": "发布/运行后台任务，如同步受众、导出、跑批"},
+    "general": {"name": "通用",     "desc": "产品介绍、使用答疑、其它对话"},
+}
+
+AGENT_SYSTEM: dict[str, str] = {
+    "data": (
+        "你是 AgenticDataHub 的「数据查询」智能体；通过只读 MCP 工具查询「智能实时数据底座」"
+        "（用户/线索/客户/订单/受众/标签/画像等）。当前 tenant_id 是 {tenant_id}，调用需要 tenant_id 的工具时务必带上。"
+        "回答简洁，用用户的语言。"
+    ),
+    "analyst": (
+        "你是 AgenticDataHub 的「分析」智能体。用户想要图表/看板/指标时：单个图表用 `create_chart`，"
+        "一个含多图的看板用 `create_dashboard`，把用户需求原样作为 question 传给工具。当前 tenant_id 是 {tenant_id}。"
+        "建好后简要说明名称，并提示去「分析」查看。回答简洁。"
+    ),
+    "task": (
+        "你是 AgenticDataHub 的「任务」智能体。用户要发布/运行后台任务（同步受众、导出、跑批等）时调用 `publish_task`。"
+        "当前 tenant_id 是 {tenant_id}。回答简洁。"
+    ),
+    "general": (
+        "你是 AgenticDataHub 的智能助手（通用）。AgenticDataHub 是智能实时数据底座，含连接/用户/对象/客户/触达/"
+        "知识库/应用/分析等。做产品介绍与答疑；当用户想查数据/建图表看板/发任务时，引导其说清需求。回答简洁，用用户的语言。"
+    ),
+}
+
+app = FastAPI(title="AgenticDataHub 智能助手（多智能体）")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
+                   allow_methods=["*"], allow_headers=["*"])
 
 
-# ── 请求/响应模型 ───────────────────────────────────────────────────────────
 class ChatMessage(BaseModel):
     role: str
     content: str
@@ -65,26 +87,18 @@ class ChatRequest(BaseModel):
 # ── MCP 桥接 ────────────────────────────────────────────────────────────────
 def _mcp_params() -> StdioServerParameters:
     return StdioServerParameters(
-        command=sys.executable,
-        args=[MCP_SERVER_PATH],
+        command=sys.executable, args=[MCP_SERVER_PATH],
         env={**os.environ, "SQL_ENGINE_URL": MCP_SQL_ENGINE_URL, "no_proxy": "*"},
     )
 
 
 def _mcp_tool_to_function(t: Any) -> dict:
-    """把一个 MCP 工具转成 DeepSeek function tool。"""
-    return {
-        "type": "function",
-        "function": {
-            "name": t.name,
-            "description": t.description or "",
-            "parameters": t.inputSchema or {"type": "object", "properties": {}},
-        },
-    }
+    return {"type": "function", "function": {
+        "name": t.name, "description": t.description or "",
+        "parameters": t.inputSchema or {"type": "object", "properties": {}}}}
 
 
 async def _fetch_tool_schemas() -> list[dict]:
-    """开一个 MCP 会话拉取工具清单，转为 DeepSeek function tools，并缓存。"""
     global _TOOL_SCHEMA_CACHE
     async with stdio_client(_mcp_params()) as (read, write):
         async with ClientSession(read, write) as session:
@@ -95,115 +109,113 @@ async def _fetch_tool_schemas() -> list[dict]:
     return schemas
 
 
-# ── publish_task 本地工具 ───────────────────────────────────────────────────
-PUBLISH_TASK_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "publish_task",
-        "description": "发布一个后台任务（接入 reverse-ETL 调度模拟），立即返回任务ID，任务在后台运行",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "task_name": {"type": "string", "description": "任务名称"},
-                "source_object": {
-                    "type": "string",
-                    "description": "源对象，如 user/lead/account/order",
-                    "default": "user",
-                },
-            },
-            "required": ["task_name"],
-        },
-    },
-}
+def _extract_mcp_result(mcp_res: Any) -> Any:
+    content = getattr(mcp_res, "content", None)
+    if content:
+        text = getattr(content[0], "text", None)
+        if text is not None:
+            try:
+                return json.loads(text)
+            except Exception:  # noqa: BLE001
+                return text
+    return {"ok": True}
+
+
+# ── 本地工具 ────────────────────────────────────────────────────────────────
+PUBLISH_TASK_TOOL = {"type": "function", "function": {
+    "name": "publish_task",
+    "description": "发布一个后台任务（接入 reverse-ETL 调度模拟），立即返回任务ID，任务在后台运行",
+    "parameters": {"type": "object", "properties": {
+        "task_name": {"type": "string", "description": "任务名称"},
+        "source_object": {"type": "string", "description": "源对象，如 user/lead/account/order", "default": "user"},
+    }, "required": ["task_name"]}}}
+
+CREATE_CHART_TOOL = {"type": "function", "function": {
+    "name": "create_chart",
+    "description": "用自然语言创建并保存一个图表（柱/线/饼/面），返回图表标题。question 传用户对图表的描述。",
+    "parameters": {"type": "object", "properties": {
+        "question": {"type": "string", "description": "对图表的中文描述，如：按城市看线索分布的柱状图"},
+    }, "required": ["question"]}}}
+
+CREATE_DASHBOARD_TOOL = {"type": "function", "function": {
+    "name": "create_dashboard",
+    "description": "用自然语言创建并保存一个看板（含多张图），返回看板标题与查看路径。question 传用户对看板的描述。",
+    "parameters": {"type": "object", "properties": {
+        "question": {"type": "string", "description": "对看板的中文描述，如：做一个电商运营看板，看订单和商品"},
+    }, "required": ["question"]}}}
+
+
+def _agent_tools(agent: str) -> list[dict]:
+    if agent == "analyst":
+        return [CREATE_CHART_TOOL, CREATE_DASHBOARD_TOOL]
+    if agent == "task":
+        return [PUBLISH_TASK_TOOL]
+    return []
 
 
 def _complete_run_later(run_id: str, tenant_id: int, entry: dict) -> None:
-    """后台线程：sleep 3s 后通知 sql-engine 任务完成，并更新内存状态。"""
     try:
         time.sleep(3)
         with httpx.Client(timeout=30.0, trust_env=False) as client:
-            client.post(
-                f"{SQL_ENGINE_URL}/connections/reverse-etl/runs/{run_id}/complete",
-                params={"tenant_id": tenant_id},
-            )
+            client.post(f"{SQL_ENGINE_URL}/connections/reverse-etl/runs/{run_id}/complete",
+                        params={"tenant_id": tenant_id})
         entry["status"] = "success"
     except Exception:  # noqa: BLE001
         entry["status"] = "failed"
 
 
 def publish_task_handler(tenant_id: int, task_name: str, source_object: str = "user") -> dict:
-    """发布任务：建 reverse-ETL job → run-now → 后台跑批 → 回写状态。"""
     with httpx.Client(timeout=30.0, trust_env=False) as client:
-        job_resp = client.post(
-            f"{SQL_ENGINE_URL}/connections/reverse-etl/jobs",
-            params={"tenant_id": tenant_id},
-            json={
-                "job_name": task_name,
-                "source_object": source_object,
-                "destination_id": "assistant-demo",
-                "schedule_cron": "0 */15 * * * *",
-                "enabled": True,
-            },
-        )
-        job_resp.raise_for_status()
-        job = job_resp.json()
+        job = client.post(f"{SQL_ENGINE_URL}/connections/reverse-etl/jobs", params={"tenant_id": tenant_id},
+                          json={"job_name": task_name, "source_object": source_object,
+                                "destination_id": "assistant-demo", "schedule_cron": "0 */15 * * * *",
+                                "enabled": True}).json()
         job_id = job.get("job_id") or job.get("id")
-
-        run_resp = client.post(
-            f"{SQL_ENGINE_URL}/connections/reverse-etl/jobs/{job_id}/run-now",
-            params={"tenant_id": tenant_id},
-        )
-        run_resp.raise_for_status()
-        run = run_resp.json()
+        run = client.post(f"{SQL_ENGINE_URL}/connections/reverse-etl/jobs/{job_id}/run-now",
+                          params={"tenant_id": tenant_id}).json()
         run_id = run.get("run_id") or run.get("id")
-
-    entry = {
-        "run_id": run_id,
-        "job_id": job_id,
-        "task_name": task_name,
-        "source_object": source_object,
-        "tenant_id": tenant_id,
-        "status": "running",
-    }
+    entry = {"run_id": run_id, "job_id": job_id, "task_name": task_name,
+             "source_object": source_object, "tenant_id": tenant_id, "status": "running"}
     _TASK_STORE.insert(0, entry)
-
-    threading.Thread(
-        target=_complete_run_later, args=(run_id, tenant_id, entry), daemon=True
-    ).start()
-
-    return {
-        "run_id": run_id,
-        "job_id": job_id,
-        "status": "running",
-        "task_name": task_name,
-    }
+    threading.Thread(target=_complete_run_later, args=(run_id, tenant_id, entry), daemon=True).start()
+    return {"run_id": run_id, "job_id": job_id, "status": "running", "task_name": task_name}
 
 
-# ── DeepSeek 调用 ───────────────────────────────────────────────────────────
-async def _deepseek_chat(messages: list[dict], tools: list[dict]) -> dict:
-    """调 DeepSeek chat/completions，带 tools + tool_choice=auto，返回首个 message。"""
-    payload = {
-        "model": DEEPSEEK_MODEL,
-        "messages": messages,
-        "tools": tools,
-        "tool_choice": "auto",
-        "temperature": 0.2,
-    }
+def create_chart_handler(tenant_id: int, question: str) -> dict:
+    with httpx.Client(timeout=40.0, trust_env=False) as c:
+        spec = c.post(f"{SQL_ENGINE_URL}/analyst/charts/nl", params={"tenant_id": tenant_id},
+                      json={"question": question}).json()
+        saved = c.post(f"{SQL_ENGINE_URL}/analyst/charts", params={"tenant_id": tenant_id},
+                       json={"title": spec["title"], "type": spec["type"], "source": spec["source"]}).json()
+    return {"chart_id": saved["id"], "title": saved["title"], "type": saved["type"], "source": saved["source"]}
+
+
+def create_dashboard_handler(tenant_id: int, question: str) -> dict:
+    with httpx.Client(timeout=40.0, trust_env=False) as c:
+        spec = c.post(f"{SQL_ENGINE_URL}/analyst/dashboards/nl", params={"tenant_id": tenant_id},
+                      json={"question": question}).json()
+        saved = c.post(f"{SQL_ENGINE_URL}/analyst/dashboards", params={"tenant_id": tenant_id},
+                       json={"title": spec["title"], "sources": spec["sources"]}).json()
+    return {"dashboard_id": saved["id"], "title": saved["title"],
+            "chart_count": len(saved.get("sources") or []),
+            "path": f"/analyst/dashboards/custom/{saved['id']}"}
+
+
+# ── DeepSeek ────────────────────────────────────────────────────────────────
+async def _deepseek_chat(messages: list[dict], tools: list[dict] | None = None) -> dict:
+    payload: dict = {"model": DEEPSEEK_MODEL, "messages": messages, "temperature": 0.2}
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
     async with httpx.AsyncClient(timeout=60.0, trust_env=False) as client:
-        resp = await client.post(
-            f"{DEEPSEEK_API_BASE}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-        )
+        resp = await client.post(f"{DEEPSEEK_API_BASE}/chat/completions",
+                                 headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                                          "Content-Type": "application/json"}, json=payload)
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]
 
 
 def _summarize(result: Any, limit: int = 300) -> str:
-    """把工具结果压成简短文本（截断 ~limit 字）。"""
     try:
         text = json.dumps(result, ensure_ascii=False, default=str)
     except Exception:  # noqa: BLE001
@@ -211,12 +223,34 @@ def _summarize(result: Any, limit: int = 300) -> str:
     return text if len(text) <= limit else text[:limit] + "…"
 
 
-SYSTEM_PROMPT_TMPL = (
-    "你是 AgenticDataHub 的「智能助手」；可以通过工具查询「智能实时数据底座」里的数据"
-    "（用户/线索/客户/订单/受众/标签等）；当前 tenant_id 是 {tenant_id}，调用需要 tenant_id 的工具时务必带上；"
-    "当用户要求「发布/运行任务」（如同步受众、导出、跑批）时调用 `publish_task` 工具；"
-    "回答简洁，用用户的语言。"
-)
+def _route_keyword(text: str) -> str:
+    t = text or ""
+    if any(w in t for w in ("看板", "图表", "饼图", "柱状", "趋势", "占比", "分布图", "可视化", "dashboard", "chart")):
+        return "analyst"
+    if any(w in t for w in ("发布任务", "跑批", "同步", "导出", "运行任务", "后台任务", "调度")):
+        return "task"
+    if any(w in t for w in ("多少", "查", "列出", "搜索", "画像", "受众", "标签", "订单", "客户", "线索", "用户")):
+        return "data"
+    return "general"
+
+
+async def _route(messages: list[ChatMessage]) -> str:
+    last = next((m.content for m in reversed(messages) if m.role == "user"), "")
+    fallback = _route_keyword(last)
+    if not DEEPSEEK_API_KEY:
+        return fallback
+    catalog = "\n".join(f"- {k}: {v['desc']}" for k, v in AGENT_DEFS.items())
+    sysmsg = ("你是多智能体路由器。把用户的最新请求分派给最合适的智能体，只返回 JSON："
+              "{\"agent\":\"data|analyst|task|general\"}。\n智能体：\n" + catalog)
+    try:
+        out = await _deepseek_chat([{"role": "system", "content": sysmsg},
+                                    {"role": "user", "content": last}])
+        # 没给 tools，直接读 content 里的 JSON
+        content = out.get("content") or "{}"
+        agent = (json.loads(content).get("agent") or "").strip()
+        return agent if agent in AGENT_DEFS else fallback
+    except Exception:  # noqa: BLE001
+        return fallback
 
 
 # ── 端点 ────────────────────────────────────────────────────────────────────
@@ -228,7 +262,13 @@ async def health() -> dict:
         mcp_count = len(schemas)
     except Exception:  # noqa: BLE001
         mcp_count = 0
-    return {"status": "ok", "llm": bool(DEEPSEEK_API_KEY), "mcp_tools": mcp_count}
+    return {"status": "ok", "llm": bool(DEEPSEEK_API_KEY), "mcp_tools": mcp_count,
+            "agents": [{"key": k, "name": v["name"], "desc": v["desc"]} for k, v in AGENT_DEFS.items()]}
+
+
+@app.get("/agents")
+async def agents() -> dict:
+    return {"agents": [{"key": k, "name": v["name"], "desc": v["desc"]} for k, v in AGENT_DEFS.items()]}
 
 
 @app.get("/mcp/tools")
@@ -238,121 +278,98 @@ async def mcp_tools() -> dict:
         schemas = _TOOL_SCHEMA_CACHE if _TOOL_SCHEMA_CACHE is not None else await _fetch_tool_schemas()
     except Exception as e:  # noqa: BLE001
         return {"server": server, "tools": [], "error": str(e)}
-    tools = [
-        {
-            "name": s["function"]["name"],
-            "description": s["function"]["description"],
-            "parameters": s["function"]["parameters"],
-        }
-        for s in schemas
-    ]
+    tools = [{"name": s["function"]["name"], "description": s["function"]["description"],
+              "parameters": s["function"]["parameters"]} for s in schemas]
     return {"server": server, "tools": tools}
+
+
+async def _agent_loop(messages: list[dict], tools: list[dict], execute) -> tuple[str, list, dict | None, dict | None]:
+    """通用 tool-call 循环。execute(name, args) -> (result, meta{task?,created?})。"""
+    steps: list[dict] = []
+    task: dict | None = None
+    created: dict | None = None
+    reply = ""
+    for _ in range(MAX_TOOL_ITERS):
+        message = await _deepseek_chat(messages, tools or None)
+        tcs = message.get("tool_calls")
+        if not tcs:
+            reply = message.get("content") or ""
+            break
+        messages.append({"role": "assistant", "content": message.get("content") or "", "tool_calls": tcs})
+        for tc in tcs:
+            name = tc["function"]["name"]
+            raw = tc["function"].get("arguments") or "{}"
+            try:
+                args = json.loads(raw) if isinstance(raw, str) else raw
+            except Exception:  # noqa: BLE001
+                args = {}
+            ok = True
+            try:
+                result, meta = await execute(name, args)
+                if meta.get("task"):
+                    task = meta["task"]
+                if meta.get("created"):
+                    created = meta["created"]
+            except Exception as e:  # noqa: BLE001
+                ok = False
+                result, meta = {"error": str(e)}, {}
+            messages.append({"role": "tool", "tool_call_id": tc.get("id"),
+                             "content": json.dumps(result, ensure_ascii=False, default=str)})
+            steps.append({"tool": name, "args": args, "ok": ok, "summary": _summarize(result)})
+    else:
+        reply = reply or "（已达到工具调用上限，部分结果见 steps）"
+    return reply, steps, task, created
 
 
 @app.post("/chat")
 async def chat(req: ChatRequest) -> dict:
     if not DEEPSEEK_API_KEY:
-        return {
-            "reply": "（未配置 DeepSeek API Key，智能助手暂不可用）",
-            "steps": [],
-            "task": None,
-        }
+        return {"reply": "（未配置 DeepSeek API Key，智能助手暂不可用）", "agent": "general",
+                "agent_name": AGENT_DEFS["general"]["name"], "steps": [], "task": None, "created": None}
 
-    system_msg = {"role": "system", "content": SYSTEM_PROMPT_TMPL.format(tenant_id=req.tenant_id)}
-    messages: list[dict] = [system_msg] + [{"role": m.role, "content": m.content} for m in req.messages]
-
-    steps: list[dict] = []
-    task: dict | None = None
+    agent = await _route(req.messages)
+    tid = req.tenant_id
+    sysmsg = {"role": "system", "content": AGENT_SYSTEM[agent].format(tenant_id=tid)}
+    messages: list[dict] = [sysmsg] + [{"role": m.role, "content": m.content} for m in req.messages]
+    base = {"agent": agent, "agent_name": AGENT_DEFS[agent]["name"]}
 
     try:
-        async with stdio_client(_mcp_params()) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                mcp_tool_list = (await session.list_tools()).tools
-                global _TOOL_SCHEMA_CACHE
-                _TOOL_SCHEMA_CACHE = [_mcp_tool_to_function(t) for t in mcp_tool_list]
-                tools = _TOOL_SCHEMA_CACHE + [PUBLISH_TASK_TOOL]
-                mcp_names = {t.name for t in mcp_tool_list}
+        if agent == "data":
+            async with stdio_client(_mcp_params()) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    mcp_list = (await session.list_tools()).tools
+                    global _TOOL_SCHEMA_CACHE
+                    _TOOL_SCHEMA_CACHE = [_mcp_tool_to_function(t) for t in mcp_list]
+                    names = {t.name for t in mcp_list}
 
-                reply = ""
-                for _ in range(MAX_TOOL_ITERS):
-                    message = await _deepseek_chat(messages, tools)
-                    tool_calls = message.get("tool_calls")
-                    if not tool_calls:
-                        reply = message.get("content") or ""
-                        break
+                    async def execute(name, args):
+                        if name in names:
+                            res = await session.call_tool(name, args)
+                            return _extract_mcp_result(res), {}
+                        return {"error": f"未知工具：{name}"}, {}
 
-                    # 追加 assistant 的 tool_calls 消息
-                    messages.append(
-                        {
-                            "role": "assistant",
-                            "content": message.get("content") or "",
-                            "tool_calls": tool_calls,
-                        }
-                    )
+                    reply, steps, task, created = await _agent_loop(messages, _TOOL_SCHEMA_CACHE, execute)
+        else:
+            tools = _agent_tools(agent)
 
-                    for tc in tool_calls:
-                        name = tc["function"]["name"]
-                        raw_args = tc["function"].get("arguments") or "{}"
-                        try:
-                            args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
-                        except Exception:  # noqa: BLE001
-                            args = {}
+            async def execute(name, args):
+                if name == "publish_task":
+                    r = publish_task_handler(tid, args.get("task_name", "未命名任务"), args.get("source_object", "user"))
+                    return r, {"task": r}
+                if name == "create_chart":
+                    r = create_chart_handler(tid, args.get("question", ""))
+                    return r, {"created": {"kind": "chart", "id": r["chart_id"], "title": r["title"], "path": "/analyst"}}
+                if name == "create_dashboard":
+                    r = create_dashboard_handler(tid, args.get("question", ""))
+                    return r, {"created": {"kind": "dashboard", "id": r["dashboard_id"], "title": r["title"], "path": r["path"]}}
+                return {"error": f"未知工具：{name}"}, {}
 
-                        ok = True
-                        try:
-                            if name == "publish_task":
-                                result = publish_task_handler(
-                                    req.tenant_id,
-                                    args.get("task_name", "未命名任务"),
-                                    args.get("source_object", "user"),
-                                )
-                                task = result
-                            elif name in mcp_names:
-                                mcp_res = await session.call_tool(name, args)
-                                result = _extract_mcp_result(mcp_res)
-                            else:
-                                ok = False
-                                result = {"error": f"未知工具：{name}"}
-                        except Exception as e:  # noqa: BLE001
-                            ok = False
-                            result = {"error": str(e)}
+            reply, steps, task, created = await _agent_loop(messages, tools, execute)
 
-                        messages.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": tc.get("id"),
-                                "content": json.dumps(result, ensure_ascii=False, default=str),
-                            }
-                        )
-                        steps.append(
-                            {"tool": name, "args": args, "ok": ok, "summary": _summarize(result)}
-                        )
-                else:
-                    # 循环用尽仍未给出最终回复，做一次收尾总结（无工具）
-                    reply = reply or "（已达到工具调用上限，部分结果见 steps）"
-
-        return {"reply": reply, "steps": steps, "task": task}
+        return {**base, "reply": reply, "steps": steps, "task": task, "created": created}
     except Exception as e:  # noqa: BLE001
-        return {
-            "reply": f"（智能助手处理出错：{e}）",
-            "steps": steps,
-            "task": task,
-        }
-
-
-def _extract_mcp_result(mcp_res: Any) -> Any:
-    """从 MCP CallToolResult 中取出结构化结果（优先解析 JSON 文本）。"""
-    content = getattr(mcp_res, "content", None)
-    if content:
-        first = content[0]
-        text = getattr(first, "text", None)
-        if text is not None:
-            try:
-                return json.loads(text)
-            except Exception:  # noqa: BLE001
-                return text
-    return {"ok": True}
+        return {**base, "reply": f"（智能助手处理出错：{e}）", "steps": [], "task": None, "created": None}
 
 
 @app.get("/tasks")
