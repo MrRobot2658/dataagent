@@ -11,6 +11,7 @@ import AnalystPage from "./pages/AnalystPage";
 import UserDashboardPage from "./pages/analyst/UserDashboardPage";
 import AccountDashboardPage from "./pages/analyst/AccountDashboardPage";
 import RoiDashboardPage from "./pages/analyst/RoiDashboardPage";
+import CustomDashboardPage from "./pages/analyst/CustomDashboardPage";
 import FilterPage from "./pages/FilterPage";
 import EtlPage from "./pages/EtlPage";
 import EtlFlowPage from "./pages/EtlFlowPage";
@@ -112,6 +113,7 @@ export default function App() {
           <Route path="/analyst/dashboards/user" element={<UserDashboardPage />} />
           <Route path="/analyst/dashboards/account" element={<AccountDashboardPage />} />
           <Route path="/analyst/dashboards/roi" element={<RoiDashboardPage />} />
+          <Route path="/analyst/dashboards/custom/:id" element={<CustomDashboardPage />} />
 
           {/* Connections */}
           <Route path="/connections" element={<ConnectionsPage />} />

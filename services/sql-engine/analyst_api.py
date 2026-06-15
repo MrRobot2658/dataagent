@@ -155,6 +155,114 @@ class AnalystService:
         with self._conn() as conn, conn.cursor() as cur:
             cur.execute("DELETE FROM analyst_charts WHERE tenant_id=%s AND id=%s", (tenant_id, cid))
 
+    # ── 自定义看板（一组数据源）────────────────────────────────────────────
+    def _board_charts(self, tenant_id: int, sources: list[str]) -> list[dict]:
+        out = []
+        for s in sources:
+            if s in SOURCES:
+                out.append({"title": SOURCES[s]["zh"], "type": SOURCES[s]["type"],
+                            "source": s, "data": self.data(tenant_id, s)})
+        return out
+
+    def list_dashboards(self, tenant_id: int) -> list[dict]:
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("SELECT id, title, sources, created_at FROM analyst_dashboards "
+                        "WHERE tenant_id=%s ORDER BY created_at DESC", (tenant_id,))
+            rows = cur.fetchall()
+        for r in rows:
+            srcs = r["sources"]
+            if isinstance(srcs, str):
+                try:
+                    srcs = json.loads(srcs)
+                except (json.JSONDecodeError, TypeError):
+                    srcs = []
+            r["sources"] = srcs or []
+            r["chart_count"] = len(r["sources"])
+            r["created_at"] = str(r["created_at"]) if r.get("created_at") else None
+        return rows
+
+    def get_dashboard(self, tenant_id: int, did: str) -> dict:
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("SELECT id, title, sources FROM analyst_dashboards WHERE tenant_id=%s AND id=%s",
+                        (tenant_id, did))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="看板不存在")
+        srcs = row["sources"]
+        if isinstance(srcs, str):
+            srcs = json.loads(srcs)
+        return {"id": row["id"], "title": row["title"], "sources": srcs or [],
+                "charts": self._board_charts(tenant_id, srcs or [])}
+
+    def save_dashboard(self, tenant_id: int, title: str, sources: list[str]) -> dict:
+        clean = [s for s in (sources or []) if s in SOURCES][:8]
+        if not clean:
+            raise HTTPException(status_code=400, detail="至少需要一个有效数据源")
+        # 去重保序
+        seen, uniq = set(), []
+        for s in clean:
+            if s not in seen:
+                seen.add(s); uniq.append(s)
+        did = "db_" + secrets.token_hex(8)
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO analyst_dashboards (id, tenant_id, title, sources) VALUES (%s,%s,%s,%s)",
+                        (did, tenant_id, title.strip()[:120] or "自定义看板", json.dumps(uniq)))
+        return {"id": did, "title": title, "sources": uniq}
+
+    def delete_dashboard(self, tenant_id: int, did: str) -> None:
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute("DELETE FROM analyst_dashboards WHERE tenant_id=%s AND id=%s", (tenant_id, did))
+
+    def nl_dashboard(self, tenant_id: int, question: str) -> dict:
+        spec = self._nl_board_llm(question) or self._nl_board_fallback(question)
+        sources = [s for s in (spec.get("sources") or []) if s in SOURCES][:8]
+        if not sources:
+            sources = ["objects_count", "order_status", "lead_stage"]
+        title = (spec.get("title") or "自定义看板").strip()[:120]
+        return {"title": title, "sources": sources, "charts": self._board_charts(tenant_id, sources)}
+
+    def _nl_board_llm(self, question: str) -> dict | None:
+        api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        if not api_key or os.getenv("AGENT_LLM_ENABLED", "1") == "0":
+            return None
+        catalog = "\n".join(f"- {k}: {v['zh']}" for k, v in SOURCES.items())
+        system = (
+            "你是看板助手。根据用户意图，从给定数据源目录里挑 3-6 个最相关的，组成一个看板。"
+            "只能用目录里的 key，绝不编造。返回 JSON："
+            "{\"title\":\"看板中文标题\",\"sources\":[\"key1\",\"key2\",...]}。\n"
+            f"数据源目录：\n{catalog}"
+        )
+        try:
+            base = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com").rstrip("/")
+            with httpx.Client(timeout=25.0, trust_env=False) as c:
+                r = c.post(f"{base}/chat/completions",
+                           headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                           json={"model": os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+                                 "messages": [{"role": "system", "content": system},
+                                              {"role": "user", "content": question}],
+                                 "response_format": {"type": "json_object"}, "temperature": 0.2})
+                r.raise_for_status()
+                return json.loads(r.json()["choices"][0]["message"]["content"])
+        except Exception:  # noqa: BLE001
+            return None
+
+    @staticmethod
+    def _nl_board_fallback(q: str) -> dict:
+        themes = [
+            (("订单", "电商", "成交", "gmv", "营收", "销售"), "电商运营看板",
+             ["order_status", "order_channel", "product_category", "objects_count"]),
+            (("线索", "转化", "漏斗", "获客", "营销"), "线索转化看板",
+             ["lead_stage", "lead_source", "lead_city", "objects_count"]),
+            (("客户", "account", "行业", "企业"), "客户洞察看板",
+             ["account_industry", "account_scale", "order_status", "objects_count"]),
+            (("门店", "区域", "线下"), "门店分布看板",
+             ["store_region", "order_channel", "objects_count"]),
+        ]
+        for kws, title, sources in themes:
+            if any(w in q for w in kws):
+                return {"title": title, "sources": sources}
+        return {"title": "综合概览看板", "sources": ["objects_count", "order_status", "lead_stage", "account_industry"]}
+
     # ── NL → 图表 spec（LLM 受限选择，失败降级关键词）───────────────────────
     def nl_chart(self, tenant_id: int, question: str) -> dict:
         spec = self._nl_llm(question) or self._nl_fallback(question)
@@ -248,3 +356,30 @@ def delete_chart(cid: str, tenant_id: int = Query(...)):
 @router.post("/charts/nl")
 def nl_chart(tenant_id: int = Query(...), question: str = Body(..., embed=True)):
     return service.nl_chart(tenant_id, question)
+
+
+# ── 自定义看板 ───────────────────────────────────────────────────────────────
+@router.get("/dashboards")
+def list_dashboards(tenant_id: int = Query(...)):
+    return {"dashboards": service.list_dashboards(tenant_id)}
+
+
+@router.get("/dashboards/{did}")
+def get_dashboard(did: str, tenant_id: int = Query(...)):
+    return service.get_dashboard(tenant_id, did)
+
+
+@router.post("/dashboards")
+def save_dashboard(tenant_id: int = Query(...), title: str = Body(...), sources: list[str] = Body(...)):
+    return service.save_dashboard(tenant_id, title, sources)
+
+
+@router.delete("/dashboards/{did}")
+def delete_dashboard(did: str, tenant_id: int = Query(...)):
+    service.delete_dashboard(tenant_id, did)
+    return {"ok": True}
+
+
+@router.post("/dashboards/nl")
+def nl_dashboard(tenant_id: int = Query(...), question: str = Body(..., embed=True)):
+    return service.nl_dashboard(tenant_id, question)

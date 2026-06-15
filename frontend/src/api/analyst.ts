@@ -61,3 +61,37 @@ export async function getKpis(tenant: number): Promise<Kpis> {
   const { data } = await http.get(`/analyst/kpis`, { params: { tenant_id: tenant } });
   return data;
 }
+
+// ── 自定义看板 ───────────────────────────────────────────────────────────────
+export interface Dashboard {
+  id: string;
+  title: string;
+  sources: string[];
+  chart_count?: number;
+  created_at?: string | null;
+  charts?: Chart[];
+}
+
+export async function listDashboards(tenant: number): Promise<Dashboard[]> {
+  const { data } = await http.get(`/analyst/dashboards`, { params: { tenant_id: tenant } });
+  return data.dashboards || [];
+}
+
+export async function getDashboard(tenant: number, id: string): Promise<Dashboard> {
+  const { data } = await http.get(`/analyst/dashboards/${id}`, { params: { tenant_id: tenant } });
+  return data;
+}
+
+export async function nlDashboard(tenant: number, question: string): Promise<Dashboard> {
+  const { data } = await http.post(`/analyst/dashboards/nl`, { question }, { params: { tenant_id: tenant } });
+  return data;
+}
+
+export async function saveDashboard(tenant: number, body: { title: string; sources: string[] }): Promise<Dashboard> {
+  const { data } = await http.post(`/analyst/dashboards`, body, { params: { tenant_id: tenant } });
+  return data;
+}
+
+export async function deleteDashboard(tenant: number, id: string): Promise<void> {
+  await http.delete(`/analyst/dashboards/${id}`, { params: { tenant_id: tenant } });
+}
