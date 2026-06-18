@@ -1,6 +1,9 @@
 {
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://sql-engine-production.up.railway.app/:path*"
+    },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
