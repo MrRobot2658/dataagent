@@ -7,6 +7,7 @@
 > **名字含义**：**Agent** —— DeepSeek 驱动的自然语言圈人/查询与 MCP 工具，让 LLM 安全地操作数据平台（候选 DSL 必须过校验层，绝不直出 SQL）；**DataHub** —— 多源数据接入的归一中枢，把小程序/企微/表单/App/批量导入等多渠道数据，实时归一为 OneID 并打宽成统一画像。
 
 **仓库**：https://github.com/MrRobot2658/Quasar
+**在线文档**：[https://quasar-site-gray.vercel.app](https://quasar-site-gray.vercel.app)
 
 > 设计文档（均在 [`docs/`](./docs/README.md) 下，按一级目录分模块）：1 平台底座 + 9 业务模块 + 3 扩展菜单（[知识库](./docs/10-knowledge.md) / [应用](./docs/11-apps.md) / [分析](./docs/12-analyst.md)），各含 详细/技术设计 + TODOs。实时链路架构/规模 → [00-platform](./docs/00-platform.md)；ID-Mapping 画像伸缩 / MCP 调用链路 → [02-unify](./docs/02-unify.md)。· [OpenAPI](./swagger/) · [前端说明](./frontend/README.md)
 
