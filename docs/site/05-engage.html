@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>触达 Engage · Quasar 产品文档</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div><h1>Quasar</h1></div>
+    </div>
+    <div class="sub">多数据源计算存储智能代理</div>
+    <nav>
+      <div class="grp">开始</div>
+      <a href="index.html"><span class="num"></span>快速开始 Quickstart</a>
+      <a href="architecture.html"><span class="num"></span>架构总览</a>
+      <a href="install.html"><span class="num"></span>安装与使用</a>
+      <div class="grp">功能模块</div>
+      <a href="overview.html"><span class="num">⌂</span>总览看板</a>
+      <a href="01-connections.html"><span class="num">01</span>连接 Connections</a>
+      <a href="02-unify.html"><span class="num">02</span>统一 Unify</a>
+      <a href="03-objects.html"><span class="num">03</span>对象 Objects</a>
+      <a href="04-accounts.html"><span class="num">04</span>客户 Accounts</a>
+      <a href="05-engage.html" class="active"><span class="num">05</span>触达 Engage</a>
+      <a href="06-protocols.html"><span class="num">06</span>协议 Protocols</a>
+      <a href="07-privacy.html"><span class="num">07</span>隐私 Privacy</a>
+      <a href="08-monitor.html"><span class="num">08</span>监控 Monitor</a>
+      <a href="09-settings.html"><span class="num">09</span>设置 Settings</a>
+      <a href="10-knowledge.html"><span class="num">10</span>知识库 Knowledge</a>
+      <a href="11-apps.html"><span class="num">11</span>应用 Apps</a>
+      <a href="12-analyst.html"><span class="num">12</span>分析 Analyst</a>
+      <a href="semantic.html"><span class="num">✺</span>语义层 Semantic</a>
+      <div class="grp">智能 & 平台</div>
+      <a href="assistant.html"><span class="num">✦</span>智能助手 Assistant</a>
+      <a href="auth.html"><span class="num">🔐</span>登录门禁 Auth</a>
+      <div class="grp">场景与问答</div>
+      <a href="scenarios.html"><span class="num">🎯</span>场景与方案</a>
+      <a href="faq.html"><span class="num">❓</span>常见问答 FAQ</a>
+      <div class="grp">参考</div>
+      <a href="api.html"><span class="num">⌨</span>API & 数据表</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="crumb"><a href="index.html">Quasar</a> · 功能模块</div>
+    <div class="page-head">
+      <span class="tag">对标 Segment · Engage</span>
+      <h2>触达 Engage</h2>
+      <p>圈人与激活：统一筛选器 + 自然语言圈人，实时预估、SQL 预览、存为受众。</p>
+      <div class="meta"><span class="pill">NL 圈人</span><span class="pill">实时预估</span><span class="pill">跨对象多跳</span></div>
+    </div>
+    <section>
+      <h3>子功能</h3>
+      <p class="lead">基于统一画像的人群圈选与激活。</p>
+      <table><tr><th>功能</th><th>英文</th><th>状态</th><th>说明</th></tr><tr><td>受众</td><td>Audiences</td><td><span class="b real">真实</span></td><td>已保存人群包列表（来自 /segments）</td></tr><tr><td>创建受众</td><td>Build Audience</td><td><span class="b real">真实</span></td><td>统一筛选器：多条件、AND/OR、跨对象链式多跳 + 边条件、自然语言圈人；实时预估人数 + SQL 预览；存为受众</td></tr><tr><td>受众详情</td><td>Audience Detail</td><td><span class="b mock">Mock</span></td><td>规模趋势、连接的目的地</td></tr><tr><td>旅程</td><td>Journeys</td><td><span class="b mock">Mock</span></td><td>多步自动化旅程与转化</td></tr><tr><td>群发</td><td>Broadcasts</td><td><span class="b mock">Mock</span></td><td>一次性 Push/短信/EDM 触达</td></tr></table>
+    </section>
+    <section>
+      <h3>圈人规则</h3>
+      <div class="callout">统一筛选器支持 ① 多条件 + AND/OR ② 跨对象链式多跳关联（用户 → 下单 → 商品）③ 关系边条件 ④ 自然语言（中文描述 → DSL）。查询前可「预估人数」并预览生成的 SQL，满意后「存为受众」。<b>LLM 绝不直出 SQL，候选 DSL 必须过 <code>dsl.py</code> 校验层（字段/操作符/关系/跳数）。</b></div>
+    </section>
+    <div class="pager">
+      <a href="04-accounts.html"><span class="dir">← 上一页</span>客户 Accounts</a>
+      <a class="next" href="06-protocols.html"><span class="dir">下一页 →</span>协议 Protocols</a>
+    </div>
+    <footer>
+      Quasar — 多数据源计算存储智能代理 · 控制台对标 Twilio Segment 信息架构 ·
+      文档基于 <code>docs/</code> 各模块设计整理生成。
+    </footer>
+  </main>
+</div>
+</body>
+</html>

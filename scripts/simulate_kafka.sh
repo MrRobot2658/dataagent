@@ -10,9 +10,9 @@ echo "参数: $ARGS"
 echo ""
 
 docker run --rm \
-  --network dataagent_dataagent-net \
+  --network quasar_quasar-net \
   -v "$SCRIPT_DIR/simulate_channels.py:/app/simulate_channels.py:ro" \
-  dataagent-id-mapping \
+  quasar-id-mapping \
   python /app/simulate_channels.py $ARGS --bootstrap kafka:29092
 
 echo ""

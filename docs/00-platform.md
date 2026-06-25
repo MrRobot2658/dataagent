@@ -287,10 +287,10 @@
 
 | 生产组件 | 本地实现 | 路径 |
 |---------|---------|------|
-| Kafka | `dataagent-kafka` | `docker-compose.yml` |
+| Kafka | `quasar-kafka` | `docker-compose.yml` |
 | Flink Job | Python id-mapping 服务 | `services/id-mapping/main.py` |
-| Redis | `dataagent-redis` | 端口 6381 |
-| MySQL | `dataagent-mysql` | `sql/init.sql` |
+| Redis | `quasar-redis` | 端口 6381 |
+| MySQL | `quasar-mysql` | `sql/init.sql` |
 | Doris | MySQL 模拟表 `doris_*` | `sql/init.sql` |
 
 Flink 生产 Job 模板见 [`docs/flink/`](./flink/README.md)。

@@ -1,9 +1,9 @@
 #!/bin/bash
-# 应用 sql/migrate_*.sql 增量迁移到 dataagent-mysql
+# 应用 sql/migrate_*.sql 增量迁移到 quasar-mysql
 # 关键：用 --default-character-set=utf8mb4 避免管道导入中文乱码（双重编码）
 set -euo pipefail
 
-CONTAINER="${MYSQL_CONTAINER:-dataagent-mysql}"
+CONTAINER="${MYSQL_CONTAINER:-quasar-mysql}"
 DB="${MYSQL_DATABASE:-dataagent}"
 USER="${MYSQL_USER:-dataagent}"
 PASS="${MYSQL_PASSWORD:-dataagent123}"

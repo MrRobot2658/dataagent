@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>架构总览 · Quasar 产品文档</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div><h1>Quasar</h1></div>
+    </div>
+    <div class="sub">多数据源计算存储智能代理</div>
+    <nav>
+      <div class="grp">开始</div>
+      <a href="index.html"><span class="num"></span>快速开始 Quickstart</a>
+      <a href="architecture.html" class="active"><span class="num"></span>架构总览</a>
+      <a href="install.html"><span class="num"></span>安装与使用</a>
+      <div class="grp">功能模块</div>
+      <a href="overview.html"><span class="num">⌂</span>总览看板</a>
+      <a href="01-connections.html"><span class="num">01</span>连接 Connections</a>
+      <a href="02-unify.html"><span class="num">02</span>统一 Unify</a>
+      <a href="03-objects.html"><span class="num">03</span>对象 Objects</a>
+      <a href="04-accounts.html"><span class="num">04</span>客户 Accounts</a>
+      <a href="05-engage.html"><span class="num">05</span>触达 Engage</a>
+      <a href="06-protocols.html"><span class="num">06</span>协议 Protocols</a>
+      <a href="07-privacy.html"><span class="num">07</span>隐私 Privacy</a>
+      <a href="08-monitor.html"><span class="num">08</span>监控 Monitor</a>
+      <a href="09-settings.html"><span class="num">09</span>设置 Settings</a>
+      <a href="10-knowledge.html"><span class="num">10</span>知识库 Knowledge</a>
+      <a href="11-apps.html"><span class="num">11</span>应用 Apps</a>
+      <a href="12-analyst.html"><span class="num">12</span>分析 Analyst</a>
+      <a href="semantic.html"><span class="num">✺</span>语义层 Semantic</a>
+      <div class="grp">智能 & 平台</div>
+      <a href="assistant.html"><span class="num">✦</span>智能助手 Assistant</a>
+      <a href="auth.html"><span class="num">🔐</span>登录门禁 Auth</a>
+      <div class="grp">场景与问答</div>
+      <a href="scenarios.html"><span class="num">🎯</span>场景与方案</a>
+      <a href="faq.html"><span class="num">❓</span>常见问答 FAQ</a>
+      <div class="grp">参考</div>
+      <a href="api.html"><span class="num">⌨</span>API & 数据表</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="crumb"><a href="index.html">Quasar</a> · 开始</div>
+    <div class="page-head">
+      <span class="tag">平台底座 · 实时链路</span>
+      <h2>架构总览</h2>
+      <p>数据链路层级、组件端口与安全边界。dev 环境用轻量组件模拟生产的 Flink / Doris，调度则用真实 Airflow。</p>
+    </div>
+    <section>
+      <h3>数据链路层级</h3>
+      <p class="lead">接入 → Kafka → Flink → MySQL → Doris。本地 dev 用 <b>ID-Mapping 服务 + MySQL</b> 模拟 Flink / Doris；StreamPark / DolphinScheduler / Doris 为生产目标组件，调度由真实 Apache Airflow 承载。</p>
+      <div class="arch"><pre>┌─ L1 · 接入层（数据入口）
+│    小程序 / 企微 / 表单 / App / 批量导入 API
+│    统一封装为 UserEvent(tenant_id + channel + link_keys + properties)
+▼
+┌─ L2 · Kafka 消息层（事件总线）
+│    tenant-{id}-events（大租户独立 Topic） · shared-tenant-events（微租户共享）
+│    按 tenant_id / channel_id 分区，保证同一用户事件有序
+▼
+┌─ L3 · Flink 实时计算层（StreamPark 管控）
+│    Job-1 ID-Mapping(OneID 识别/merge) → Job-2 画像聚合 → Job-3 宽表打宽
+│    输出 enriched-events，并行写入下游存储
+▼
+┌─ L3+ · Redis 热层（旁路，< 5ms 点查）
+│    Flink Job-1 同步写入 channel → one_id 映射，供实时识别/热点查询
+▼
+┌─ L4 · MySQL 业务冷层（持久化/审计）
+│    one_id 发号器 · id_mapping 离线导入 · merge_log 合并审计 · 租户配置
+▼
+└─ L5 · Doris OLAP 层（画像/圈选）
+     id_mapping · user_profile · user_wide
+     大租户独立库 + BE Tag，小租户共享库 tenant_id 分区
+
+── 查询层（只读）── SQL Engine + 数据 Agent ← 业务应用 / MA / BI
+── 调度管控层（K8s）── StreamPark：Flink 启停扩缩 · DolphinScheduler：离线/批标签/运维
+                       （dev 用 Apache Airflow 承载「可视化编排 Pipelines」的真实调度）</pre></div>
+      <p><b>前端技术栈</b>：React 18 + Vite + TypeScript + TailwindCSS（TailAdmin 风格、Segment 信息架构）。数据链路：浏览器 <code>/api/*</code> →（dev: vite 代理 / 生产: nginx）→ <b>SQL Engine :8002</b> → <b>MySQL</b>，毫秒级实时查询。</p>
+    </section>
+
+    <section>
+      <h3>组件与端口</h3>
+      <p class="lead">所有访问统一经 <b>Nginx 网关 :8080</b>；直连端口仅用于调试。</p>
+      <table>
+        <tr><th>组件</th><th>端口</th><th>角色</th></tr>
+        <tr><td>Nginx 网关</td><td><code>8080</code></td><td><code>/</code> 首页、<code>/console/</code> CDP SPA、<code>/api/*</code> → sql-engine、Swagger 代理</td></tr>
+        <tr><td>控制台（前端）</td><td><code>8080/console/</code></td><td>对标 Segment 的 React SPA（生产）；dev 用 <code>5173</code></td></tr>
+        <tr><td>SQL Engine</td><td><code>8002</code></td><td>OLAP 查询层 + Agent（模板 SQL + DSL 圈人 + NL 圈人 + 只读 MCP）</td></tr>
+        <tr><td>ID-Mapping</td><td><code>8001</code></td><td>实时合并服务 API（OneID 识别 / merge / 画像查询）</td></tr>
+        <tr><td>MySQL 8</td><td><code>3308</code></td><td>业务库：id_mapping / user_profile / user_groups / merge_log / object_*</td></tr>
+        <tr><td>Redis 7</td><td><code>6381</code></td><td>OneID 热缓存</td></tr>
+        <tr><td>Kafka / Kafka UI</td><td><code>9094</code> / <code>8083</code></td><td>多租户事件总线 / Topic 可视化</td></tr>
+        <tr><td>Airflow</td><td><code>8088</code></td><td>「可视化编排」真实调度后端（admin/admin），经 REST API 触发 DAG</td></tr>
+        <tr><td>智能助手 assistant</td><td><code>8004</code></td><td>多智能体：路由 → 数据查询/分析/任务/通用</td></tr>
+      </table>
+      <div class="callout"><b>标注约定</b> · <span class="b real">真实</span> = 走 SQL Engine → MySQL 的实时查询，操作即落库；<span class="b mock">Mock</span> = 纯前端演示数据（页面右上有「Mock 数据」角标），后端尚未接入（路线图）。</div>
+    </section>
+
+    <section>
+      <h3>安全边界</h3>
+      <div class="callout"><b>LLM 绝不直出 SQL。</b> 圈人 / 查询走 <code>engine.py</code> 模板 + 参数绑定，或 <code>dsl.py</code> 的 validate → echo → compile → estimate 路径——候选 DSL 必须先过校验层（字段 / 操作符 / 关系 / 跳数）才会被展示或执行。存储经 <code>executor.py</code> 解耦，可用 <code>OLAP_BACKEND</code> 在 MySQL / Doris 间切换。</div>
+    </section>
+    <div class="pager">
+      <a href="index.html"><span class="dir">← 上一页</span>快速开始 Quickstart</a>
+      <a class="next" href="install.html"><span class="dir">下一页 →</span>安装与使用</a>
+    </div>
+    <footer>
+      Quasar — 多数据源计算存储智能代理 · 控制台对标 Twilio Segment 信息架构 ·
+      文档基于 <code>docs/</code> 各模块设计整理生成。
+    </footer>
+  </main>
+</div>
+</body>
+</html>

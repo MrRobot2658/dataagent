@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>常见问答 FAQ · Quasar 产品文档</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div><h1>Quasar</h1></div>
+    </div>
+    <div class="sub">多数据源计算存储智能代理</div>
+    <nav>
+      <div class="grp">开始</div>
+      <a href="index.html"><span class="num"></span>快速开始 Quickstart</a>
+      <a href="architecture.html"><span class="num"></span>架构总览</a>
+      <a href="install.html"><span class="num"></span>安装与使用</a>
+      <div class="grp">功能模块</div>
+      <a href="overview.html"><span class="num">⌂</span>总览看板</a>
+      <a href="01-connections.html"><span class="num">01</span>连接 Connections</a>
+      <a href="02-unify.html"><span class="num">02</span>统一 Unify</a>
+      <a href="03-objects.html"><span class="num">03</span>对象 Objects</a>
+      <a href="04-accounts.html"><span class="num">04</span>客户 Accounts</a>
+      <a href="05-engage.html"><span class="num">05</span>触达 Engage</a>
+      <a href="06-protocols.html"><span class="num">06</span>协议 Protocols</a>
+      <a href="07-privacy.html"><span class="num">07</span>隐私 Privacy</a>
+      <a href="08-monitor.html"><span class="num">08</span>监控 Monitor</a>
+      <a href="09-settings.html"><span class="num">09</span>设置 Settings</a>
+      <a href="10-knowledge.html"><span class="num">10</span>知识库 Knowledge</a>
+      <a href="11-apps.html"><span class="num">11</span>应用 Apps</a>
+      <a href="12-analyst.html"><span class="num">12</span>分析 Analyst</a>
+      <a href="semantic.html"><span class="num">✺</span>语义层 Semantic</a>
+      <div class="grp">智能 & 平台</div>
+      <a href="assistant.html"><span class="num">✦</span>智能助手 Assistant</a>
+      <a href="auth.html"><span class="num">🔐</span>登录门禁 Auth</a>
+      <div class="grp">场景与问答</div>
+      <a href="scenarios.html"><span class="num">🎯</span>场景与方案</a>
+      <a href="faq.html" class="active"><span class="num">❓</span>常见问答 FAQ</a>
+      <div class="grp">参考</div>
+      <a href="api.html"><span class="num">⌨</span>API & 数据表</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="crumb"><a href="index.html">Quasar</a> · 场景与问答</div>
+    <div class="page-head">
+      <span class="tag">FAQ · 常见问答</span>
+      <h2>常见问答 FAQ</h2>
+      <p>关于产品定位、部署依赖、数据安全、接入能力与规模扩展的常见问题。</p>
+    </div>
+    <section>
+      <h3>产品定位</h3>
+      <h4>Q · Quasar 和传统 CDP / BI 有什么区别？</h4>
+      <p>传统平台只有 SQL 层——你问什么它查什么，回答精确但孤立。Quasar 内建<a href='semantic.html'>语义融合层</a>：以「实体 + 概念 + 关系」建模，把数据库（结构化）和知识库（非结构化）双源融合，Agent 不只给数字，还能匹配口径、关联上下文、构建归因、生成建议。从「查询工具」升级为「业务伙伴」。</p>
+      <h4>Q · Quasar 就是又一个套壳的 NL2SQL 吗？</h4>
+      <p>不是。NL2SQL 只解决「会不会写 SQL」，Quasar 解决「懂不懂业务」。而且<b>LLM 绝不直出 SQL</b>：候选 DSL 必须过 <a href='architecture.html'>校验层</a>（字段/操作符/关系/跳数）才会被展示或执行，安全可控。</p>
+    </section>
+
+    <section>
+      <h3>部署与依赖</h3>
+      <h4>Q · 必须上 Doris / Flink 吗？能单机跑吗？</h4>
+      <p>能。支持<b>一体化部署</b>（单机开箱即用）与<b>计算存储分离</b>（Doris 存算分离 + 计算弹性扩缩）两种形态。本地 dev 一条 <code>docker compose up</code> 起全栈，用轻量组件模拟生产的 Flink/Doris。详见 <a href='install.html'>安装与使用</a>。</p>
+      <h4>Q · 没有 DeepSeek Key 能用吗？</h4>
+      <p>能。自然语言圈人/查询会降级到规则模式（<code>AGENT_LLM_ENABLED=0</code>），其余真实功能（数据源导入、画像检索、DSL 圈人、看板）不受影响。配置 Key 后即可启用 NL 圈人/生成看板/智能助手。</p>
+      <h4>Q · 语义层和知识库需要额外部署吗？</h4>
+      <p>不需要。两者都是<b>默认功能</b>：知识库随栈启动（文件存 <code>kb_data</code> 卷、元数据落库）；语义层构建在对象模型 + 知识库之上，无需单独的服务。</p>
+      <h4>Q · 怎么接真实 Doris？</h4>
+      <p>设环境变量 <code>OLAP_BACKEND=doris OLAP_HOST=doris-fe OLAP_PORT=9030</code> 即可。存储经 <code>executor.py</code> 解耦，平台其余部分无需改动。</p>
+    </section>
+
+    <section>
+      <h3>数据安全与治理</h3>
+      <h4>Q · LLM 会直接生成并执行 SQL 吗？</h4>
+      <p>不会。所有查询走 <code>engine.py</code> 模板（named template + 参数绑定）或 <code>dsl.py</code> 的 validate → compile 路径。LLM 只产出候选 DSL，必经校验层；这是查询构建的安全边界。</p>
+      <h4>Q · 多租户怎么隔离？</h4>
+      <p>所有查询按 <code>tenant_id</code> 强制隔离，顶栏 Workspace 切换租户（1001/1002）。登录后 workspace 自动切到该用户所属租户。</p>
+      <h4>Q · 有权限和审计吗？</h4>
+      <p>有。<a href='09-settings.html'>设置</a>提供 IAM 成员/角色/团队、API 令牌、审计日志（Audit Trail）和 MCP 工具清单，均为真实功能。</p>
+    </section>
+
+    <section>
+      <h3>数据接入与能力</h3>
+      <h4>Q · 支持哪些数据源？</h4>
+      <p><a href='01-connections.html'>数据源目录</a>平铺 <b>44 个主流连接器</b>，按 8 类分组：数据库/数仓/数据湖/查询引擎/对象存储/流/文件/API（MySQL、PostgreSQL、ClickHouse、MongoDB、Snowflake、BigQuery、Iceberg、Delta、S3、Kafka、Trino…）。CSV/粘贴可直接走可视化 ETL 导入。</p>
+      <h4>Q · 可视化编排是真调度还是模拟？</h4>
+      <p><b>真调度</b>。「管道」执行经 <b>Apache Airflow</b> REST API 触发参数化通用 DAG，用动态任务映射（<code>.expand</code>）按画布节点展开多任务。Airflow 不可达时优雅降级为本地模拟，不报错。</p>
+      <h4>Q · 圈人结果怎么激活到下游？</h4>
+      <p>存为受众后，通过<a href='11-apps.html'>应用市场</a>连接 CRM/广告/消息/分析等下游（Salesforce、广点通、短信、企微、神策等），状态按租户持久化。</p>
+      <h4>Q · 智能助手能做什么？</h4>
+      <p><a href='assistant.html'>右上角智能助手</a>是多智能体：数据查询（41 个只读 MCP 工具）、分析（建图表/看板）、任务（后台运行）、通用导航；并有主动式埋点 Copilot 主动给建议。</p>
+    </section>
+
+    <section>
+      <h3>规模与扩展</h3>
+      <h4>Q · 能支撑多大数据量？</h4>
+      <p>用 <code>bash scripts/scale-up.sh {{dev|medium|large|xlarge}}</code> 按规模模拟集群（&lt;1 万 / 1 亿 / 2 亿）。生产形态下计算弹性扩缩 + Doris 存算分离支撑大体量；大租户独立库 + BE Tag，小租户共享库按 tenant_id 分区。</p>
+      <h4>Q · 和现有数仓/BI 冲突吗？</h4>
+      <p>不冲突。Quasar 可作为语义层与画像中枢叠加在现有数仓之上（连数仓、Reverse ETL 回流），向上为 Agent/MA/BI 提供结构化数据接口。</p>
+    </section>
+    <div class="pager">
+      <a href="scenarios.html"><span class="dir">← 上一页</span>场景与方案</a>
+      <a class="next" href="api.html"><span class="dir">下一页 →</span>API & 数据表</a>
+    </div>
+    <footer>
+      Quasar — 多数据源计算存储智能代理 · 控制台对标 Twilio Segment 信息架构 ·
+      文档基于 <code>docs/</code> 各模块设计整理生成。
+    </footer>
+  </main>
+</div>
+</body>
+</html>

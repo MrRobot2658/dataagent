@@ -14,7 +14,7 @@ export NO_PROXY='*' no_proxy='*'
 
 T="${1:-1001}"
 BASE="${SEED_BASE:-http://localhost:8080/api}"   # 经 nginx 网关，剥 /api 转 sql-engine
-MYSQL_CONTAINER="${MYSQL_CONTAINER:-dataagent-mysql}"
+MYSQL_CONTAINER="${MYSQL_CONTAINER:-quasar-mysql}"
 MYSQL_USER="${MYSQL_USER:-dataagent}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD:-dataagent123}"
 MYSQL_DATABASE="${MYSQL_DATABASE:-dataagent}"

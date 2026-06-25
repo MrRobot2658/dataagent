@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>语义层 Semantic Layer · Quasar 产品文档</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div><h1>Quasar</h1></div>
+    </div>
+    <div class="sub">多数据源计算存储智能代理</div>
+    <nav>
+      <div class="grp">开始</div>
+      <a href="index.html"><span class="num"></span>快速开始 Quickstart</a>
+      <a href="architecture.html"><span class="num"></span>架构总览</a>
+      <a href="install.html"><span class="num"></span>安装与使用</a>
+      <div class="grp">功能模块</div>
+      <a href="overview.html"><span class="num">⌂</span>总览看板</a>
+      <a href="01-connections.html"><span class="num">01</span>连接 Connections</a>
+      <a href="02-unify.html"><span class="num">02</span>统一 Unify</a>
+      <a href="03-objects.html"><span class="num">03</span>对象 Objects</a>
+      <a href="04-accounts.html"><span class="num">04</span>客户 Accounts</a>
+      <a href="05-engage.html"><span class="num">05</span>触达 Engage</a>
+      <a href="06-protocols.html"><span class="num">06</span>协议 Protocols</a>
+      <a href="07-privacy.html"><span class="num">07</span>隐私 Privacy</a>
+      <a href="08-monitor.html"><span class="num">08</span>监控 Monitor</a>
+      <a href="09-settings.html"><span class="num">09</span>设置 Settings</a>
+      <a href="10-knowledge.html"><span class="num">10</span>知识库 Knowledge</a>
+      <a href="11-apps.html"><span class="num">11</span>应用 Apps</a>
+      <a href="12-analyst.html"><span class="num">12</span>分析 Analyst</a>
+      <a href="semantic.html" class="active"><span class="num">✺</span>语义层 Semantic</a>
+      <div class="grp">智能 & 平台</div>
+      <a href="assistant.html"><span class="num">✦</span>智能助手 Assistant</a>
+      <a href="auth.html"><span class="num">🔐</span>登录门禁 Auth</a>
+      <div class="grp">场景与问答</div>
+      <a href="scenarios.html"><span class="num">🎯</span>场景与方案</a>
+      <a href="faq.html"><span class="num">❓</span>常见问答 FAQ</a>
+      <div class="grp">参考</div>
+      <a href="api.html"><span class="num">⌨</span>API & 数据表</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="crumb"><a href="index.html">Quasar</a> · 功能模块</div>
+    <div class="page-head">
+      <span class="tag">核心能力 · 语义融合</span>
+      <h2>语义层 Semantic Layer <span class="b real">默认功能</span></h2>
+      <p>当数据平台学会「理解」业务：把数据库（结构化）与知识库（非结构化）在语义层融合，让 Agent 从「会写 SQL 的搜索引擎」变成能归因、能给建议的业务伙伴。</p>
+      <div class="meta"><span class="pill">双源融合</span><span class="pill">Entity Hub</span><span class="pill">归因链</span><span class="pill">与知识库融合</span></div>
+    </div>
+    <section>
+      <div class="callout"><b>核心能力</b> · 语义融合层是 Quasar 的核心差异点：把 <a href="03-objects.html">对象模型</a>（结构化数据源）与 <a href="10-knowledge.html">知识库</a>（非结构化知识源）在语义层融合，让 Agent 从「会写 SQL 的搜索引擎」变成能归因、能给建议的业务伙伴。</div>
+    </section>
+
+    <section>
+      <h3>一、问题：数据平台只走了第一公里</h3>
+      <p>大多数数据平台（含传统 CDP / BI）只有一层 <b>SQL 层</b>：你问什么它查什么，但它不知道「退款率」是什么意思、8% 是否异常、退款和批次质量有没有关系。AI Agent 出现后，<b>Agent 能写 SQL，但依然不懂业务</b>——它能输出「退款率 8.2%」，却无法回答「给我分析一下」，因为它不知道 SKU 背后有供应链、批次里有质检报告。</p>
+      <p>数据平台只告诉你「发生了什么」，剩下的「为什么、怎么办」全靠人来走。缺少的，就是<b>语义层</b>。</p>
+    </section>
+
+    <section>
+      <h3>二、什么是语义层</h3>
+      <p class="lead">介于原始数据与上层应用之间的<b>翻译层</b>，做三件事：</p>
+      <div class="cards">
+        <div class="card"><h5><span class="ico">🧥</span>给冷数据穿暖衣</h5><p><code>status=refunded</code> 翻译成业务语言：「客户退款了，原因是质量问题还是尺寸不符？」</p></div>
+        <div class="card"><h5><span class="ico">🧩</span>把碎片拼成全景</h5><p>订单表、退款表、质检报告、供应商档案、客服对话拼成一条完整的业务故事线。</p></div>
+        <div class="card"><h5><span class="ico">🧠</span>让 AI 看懂上下文</h5><p>Agent 拿到的不是一个数字，而是「业务上下文包」= 数字 + 定义 + 关联知识 + 异常判断。</p></div>
+      </div>
+      <p>关键洞察：让 AI 能回答业务问题的，不是写 SQL 的能力，而是<b>理解业务的能力</b>——这需要把数据库（结构化）和知识库（非结构化）在语义层融合起来。</p>
+    </section>
+
+    <section>
+      <h3>三、语义融合架构</h3>
+      <p class="lead">融合层由三部分组成：</p>
+      <div class="cards">
+        <div class="card"><h5><span class="ico">①</span>Entity Hub 实体中心</h5><p>把同一业务实体（用户/订单/商品/供应商/批次）在数据库与知识库中的存在形式统一。DB 里 <code>user_id=12345</code> 是一行记录，KB 里是一份画像文档 + 客服对话摘要——Agent 查一个实体，同时拿到精确数据和业务上下文。</p></div>
+        <div class="card"><h5><span class="ico">②</span>Property Federation 属性联邦</h5><p>数据库字段与知识库属性做声明式绑定。<code>user.total_orders</code> 不只是数字，还关联口径说明（「= 所有 completed 订单数」）、历史趋势、行业基准——字段成为有业务生命的概念。</p></div>
+        <div class="card"><h5><span class="ico">③</span>Relationship Cross-linking 关系跨链</h5><p>数据库外键关系 + 知识库实体关系合并为一张统一关系图。DB 知道「用户→订单」一对多，KB 知道「用户→物流投诉」业务关联，合并后可走完整归因链。</p></div>
+      </div>
+      <h4>一条完整的归因链</h4>
+      <div class="flow">
+        <span class="node">用户</span><span class="arr">→</span>
+        <span class="node">最近订单</span><span class="arr">→</span>
+        <span class="node">退款记录</span><span class="arr">→</span>
+        <span class="node">退款 SKU</span><span class="arr">→</span>
+        <span class="node">质检报告</span><span class="arr">→</span>
+        <span class="node">批次生产记录</span><span class="arr">→</span>
+        <span class="node">供应商质量趋势</span>
+      </div>
+    </section>
+
+    <section>
+      <h3>四、与知识库的融合（双源）</h3>
+      <p class="lead">语义层的非结构化一极正是 <a href="10-knowledge.html">知识库 Knowledge</a>。两者的关系：</p>
+      <table>
+        <tr><th>层</th><th>承载</th><th>在语义层中的角色</th></tr>
+        <tr><td>结构化数据源</td><td><a href="03-objects.html">对象模型</a> / 画像宽表 / OLAP 表</td><td>提供精确数值与外键关系（DB 侧）</td></tr>
+        <tr><td>非结构化知识源</td><td><a href="10-knowledge.html">知识库</a>：文档 / 质检报告 / 客服对话 / 供应商档案 / 口径说明</td><td>提供业务上下文、定义口径、异常基准（KB 侧）</td></tr>
+      </table>
+      <p>知识库支持<b>多模态文件存储 + 关联到对象记录</b>（如 <code>account/A3001</code>），这正是语义融合的落点：知识库文件经 Entity Hub 与数据库实体对齐、经 Property Federation 绑定到字段口径、经关系跨链并入统一关系图。能力组成：</p>
+      <ul>
+        <li><b>知识切片与向量化</b> —— 知识库文件解析、切片、Embedding，支持语义检索。</li>
+        <li><b>实体对齐</b> —— 文件/段落与对象记录的自动 / 人工对齐（扩展现有「关联对象」能力）。</li>
+        <li><b>口径绑定</b> —— 把字段（如 <code>total_orders</code>）绑定到知识库里的口径说明文档，回答时一并给出定义。</li>
+        <li><b>归因链编排</b> —— Agent 沿统一关系图跨 DB / KB 多跳，构建归因链并生成建议。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h3>五、一个真实例子</h3>
+      <p>同一问题「上周退款率为什么突然升高？」，Agent 的处理不再是「查一下数据库」：</p>
+      <ul>
+        <li><b>意图理解</b>：混合型问题，需定量（退款率）+ 定性（原因）。</li>
+        <li><b>实体解析</b>：「退款率」→ Entity Hub 定位到 <code>orders.status=refunded</code> 数据集 + 行业基准知识库文档。</li>
+        <li><b>数据采集（DB 侧）</b>：上周 8.2%（前 4 周均值 2.7%，3 倍）；78% 退款来自同一 SKU FUR-2026-WINTER；质量问题集中在 B202603 批次。</li>
+        <li><b>知识关联（KB 侧）</b>：B202603 质检报告「色泽不均，质检退回率 15%」；供应商 A 投诉率同比 +300%；行业基准 3–5%。</li>
+        <li><b>归因链构建</b>：供应商 A 的 B202603 批次色泽不均 → 集中在该 SKU → 上周大量交付新客 → 新客退款 → 退款率飙升。</li>
+      </ul>
+      <div class="callout">Agent 最终输出的不是数据摘录，而是完整业务分析 + 行动建议：<b>①立即停售该批次 ②主动联系已购用户补偿 ③要求供应商整改 ④同步开发备选供应商。</b></div>
+    </section>
+
+    <section>
+      <h3>六、范式对比</h3>
+      <table>
+        <tr><th>维度</th><th>传统数据平台</th><th>语义融合平台（Quasar）</th></tr>
+        <tr><td>核心模型</td><td>表 + 字段</td><td>实体 + 概念 + 关系</td></tr>
+        <tr><td>查询方式</td><td>SQL / NL → SQL</td><td>意图 → 语义表达式 → 多源路由</td></tr>
+        <tr><td>知识来源</td><td>仅数据库</td><td>数据库 + 知识库双源</td></tr>
+        <tr><td>回答质量</td><td>精确但孤立</td><td>精确 + 有上下文 + 可归因</td></tr>
+        <tr><td>用户角色</td><td>分析师（会写 SQL）</td><td>业务人员（说人话）</td></tr>
+      </table>
+      <div class="callout">这不是加一个「智能分析」模块，而是数据平台架构的范式转换：从「查询」（你问什么它答什么）到「理解」（理解意图 → 匹配口径 → 关联上下文 → 构建归因 → 生成建议）。</div>
+    </section>
+    <div class="pager">
+      <a href="12-analyst.html"><span class="dir">← 上一页</span>分析 Analyst</a>
+      <a class="next" href="assistant.html"><span class="dir">下一页 →</span>智能助手 Assistant</a>
+    </div>
+    <footer>
+      Quasar — 多数据源计算存储智能代理 · 控制台对标 Twilio Segment 信息架构 ·
+      文档基于 <code>docs/</code> 各模块设计整理生成。
+    </footer>
+  </main>
+</div>
+</body>
+</html>
