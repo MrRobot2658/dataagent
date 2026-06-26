@@ -25,10 +25,7 @@ export default function QueuePanel() {
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <Radio className="h-4 w-4 text-amber-600" />
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-900">{tr("队列（Kafka 事件总线）", "Queues (Kafka)")}</div>
-          <div className="text-[11px] text-gray-400">{tr("多租户事件 Topic", "Multi-tenant event topics")}</div>
-        </div>
+        <div className="flex-1 text-[11px] text-gray-400">{tr("Kafka 多租户事件 Topic", "Kafka multi-tenant event topics")}</div>
         <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
           {stats?.kafka_topics ?? "—"} {tr("队列", "topics")}
         </span>

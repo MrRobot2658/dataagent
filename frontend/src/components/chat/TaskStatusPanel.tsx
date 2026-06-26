@@ -98,10 +98,7 @@ export default function TaskStatusPanel() {
     <div className="flex flex-col">
       <div className="flex items-center gap-2 pb-2">
         <Database className="h-4 w-4 text-brand-600" />
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-900">{tr("数据源（数据库：业务库 / 数仓）", "Data Sources (Databases)")}</div>
-          <div className="text-[11px] text-gray-400">{tr("点击数字查看详情", "Click a number for details")}</div>
-        </div>
+        <div className="flex-1 text-[11px] text-gray-400">{tr("数据库：业务库(MySQL) / 数仓(Doris) / 对象 · 点数字看详情", "Databases · click a number for details")}</div>
         <button type="button" onClick={load} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title={tr("刷新", "Refresh")}>
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>

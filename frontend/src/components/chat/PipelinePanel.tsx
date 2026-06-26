@@ -24,10 +24,7 @@ export default function PipelinePanel() {
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <Activity className="h-4 w-4 text-emerald-600" />
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-900">{tr("实时链路（Flink 计算）", "Real-time pipeline (Flink)")}</div>
-          <div className="text-[11px] text-gray-400">{tr("流式 ID-Mapping / 画像聚合 / 宽表打宽", "Streaming ID-Mapping / profile / wide-table")}</div>
-        </div>
+        <div className="flex-1 text-[11px] text-gray-400">{tr("Flink 流式：ID-Mapping / 画像聚合 / 宽表打宽", "Flink streaming: ID-Mapping / profile / wide-table")}</div>
         <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
           {stats?.flink_jobs ?? "—"} {tr("任务", "jobs")}
         </span>

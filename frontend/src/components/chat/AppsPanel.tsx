@@ -23,10 +23,7 @@ export default function AppsPanel() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-900">{tr("应用（上下游接入）", "Apps (sources & destinations)")}</div>
-          <div className="text-[11px] text-gray-400">{tr("点应用让助手引导你完成接入", "Click an app to start onboarding")}</div>
-        </div>
+        <div className="flex-1 text-[11px] text-gray-400">{tr("点应用让助手引导你完成接入", "Click an app to start onboarding")}</div>
         <button type="button" onClick={load} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title={tr("刷新", "Refresh")}>
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
