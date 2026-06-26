@@ -41,3 +41,10 @@ INSERT IGNORE INTO kb_files
  ('kb_seed_t1',1001,'新人培训-第1讲.mp4','/培训素材','video/mp4','video',628000000,NULL,'31分20秒培训',5200,0),
  ('kb_seed_t2',1001,'增长方法论-播客.m4a','/培训素材','audio/mp4','audio',47000000,NULL,'48分55秒播客',6800,0),
  ('kb_seed_t3',1001,'培训讲义.md','/培训素材','text/markdown','document',9100,NULL,'培训讲义',3100,0);
+
+-- 演示：把质检报告关联到客户 A3001（Entity Hub 实体上下文包据此聚合关联知识；幂等）
+INSERT INTO kb_links (tenant_id, file_id, object_type, object_id)
+SELECT 1001, 'kb_seed_q1', 'account', 'A3001'
+WHERE NOT EXISTS (
+  SELECT 1 FROM kb_links WHERE tenant_id=1001 AND file_id='kb_seed_q1'
+    AND object_type='account' AND object_id='A3001');

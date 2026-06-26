@@ -153,6 +153,8 @@ AGENT_SYSTEM: dict[str, str] = {
         "只有当用户问的是必须用文字回答的具体事实（如精确计数、对比、解释字段含义）时，才用 cdp_* 只读工具查询后用文字作答。"
         "【指标/口径】问某业务指标的取值/口径/怎么算（退款率/GMV/客单价/支付率/线索合格率等）→ 用 explain_metric(query)，"
         "回答时给出「取值 + 口径(定义) + 公式」，若有关联知识文档(knowledge)也一并提及。"
+        "【实体上下文】用户想要某个客户/用户的「完整情况/背景/上下文」或围绕某实体做分析 → 用 entity_context(object, id) "
+        "取「数据+关联对象+关联知识」整包，再据此综合作答。"
         "【写操作】用户说「把这批人/这个人群**存为/保存为**受众叫X」→ 调用 save_audience(name=X, query=人群描述)；"
         "用户说「把…**纳入/移出上下文**（知识库）」→ 调用 curate_knowledge(query=关键词, in_context=true/false)。"
         "save_audience 返回 need_clarification 时，把澄清问题转述给用户，不要硬存。"
@@ -353,7 +355,15 @@ EXPLAIN_METRIC_TOOL = {"type": "function", "function": {
         "query": {"type": "string", "description": "指标名或中文，如 退款率 / gmv / 客单价"},
     }, "required": ["query"]},
 }}
-WRITE_TOOLS = [SAVE_AUDIENCE_TOOL, CURATE_KNOWLEDGE_TOOL, EXPLAIN_METRIC_TOOL]
+ENTITY_CONTEXT_TOOL = {"type": "function", "function": {
+    "name": "entity_context",
+    "description": "取某个业务实体的完整上下文包：结构化数据 + 关联对象 + 关联知识库文档（Entity Hub）。用户问「把客户/用户 X 的完整情况/上下文/背景给我」「围绕 X 做分析」时调用。",
+    "parameters": {"type": "object", "properties": {
+        "object": {"type": "string", "description": "对象类型：user/account/order/lead/product/store"},
+        "id": {"type": "string", "description": "对象主键值，如 A3001 或 OneID"},
+    }, "required": ["object", "id"]},
+}}
+WRITE_TOOLS = [SAVE_AUDIENCE_TOOL, CURATE_KNOWLEDGE_TOOL, EXPLAIN_METRIC_TOOL, ENTITY_CONTEXT_TOOL]
 
 
 def _agent_tools(agent: str) -> list[dict]:
@@ -385,6 +395,9 @@ def _local_exec(name: str, args: dict, tid: int):
         return r, {}
     if name == "explain_metric":
         r = explain_metric_handler(tid, args.get("query", ""))
+        return r, {}
+    if name == "entity_context":
+        r = entity_context_handler(tid, args.get("object", ""), str(args.get("id", "")))
         return r, {}
     if name == "open_page":
         path = (args.get("path") or "").strip()
@@ -470,6 +483,12 @@ def explain_metric_handler(tenant_id: int, query: str) -> dict:
     with httpx.Client(timeout=30.0, trust_env=False, headers=SQL_HEADERS) as c:
         return c.get(f"{SQL_ENGINE_URL}/semantic/explain",
                      params={"tenant_id": tenant_id, "q": query}).json()
+
+
+def entity_context_handler(tenant_id: int, obj: str, id_: str) -> dict:
+    with httpx.Client(timeout=30.0, trust_env=False, headers=SQL_HEADERS) as c:
+        return c.get(f"{SQL_ENGINE_URL}/semantic/entity",
+                     params={"tenant_id": tenant_id, "object": obj, "id": id_}).json()
 
 
 def curate_knowledge_handler(tenant_id: int, query: str, in_context: bool = True) -> dict:

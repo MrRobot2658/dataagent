@@ -8,6 +8,8 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from semantic import SemanticService, SemanticError
+from objects_api import _svc as _obj_svc      # 复用 ObjectAdminService 单例（get_detail / get_relations）
+from kb_api import service as _kb_svc          # 复用 KbService 单例（按对象取关联文件）
 
 router = APIRouter(prefix="/semantic", tags=["语义层"])
 _svc = SemanticService()
@@ -28,6 +30,43 @@ def metrics_values(
         return _svc.compute_metrics(tenant_id, selected)
     except SemanticError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/entity", summary="实体上下文包：结构化数据 + 关联对象 + 关联知识（Entity Hub）")
+def entity_context(
+    tenant_id: int = Query(..., description="租户 ID"),
+    object: str = Query(..., description="对象类型，如 user / account / order"),
+    id: str = Query(..., description="对象主键值"),
+    include_knowledge: bool = Query(True, description="是否带上关联知识库文档"),
+):
+    """Entity Hub：把一个业务实体的「结构化数据(DB) + 关联对象 + 关联知识(KB)」组装成统一上下文包，供 Agent 归因/问答。"""
+    try:
+        detail = _obj_svc.get_detail(tenant_id, object, id)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+    if not detail:
+        raise HTTPException(status_code=404, detail=f"未找到 {object}:{id}")
+    try:
+        relations = _obj_svc.get_relations(tenant_id, object, id)
+    except Exception:  # noqa: BLE001
+        relations = {}
+    knowledge = []
+    if include_knowledge:
+        try:
+            files = _kb_svc.list_files(tenant_id, None, object, id, None, None)
+            knowledge = [{"id": f["id"], "name": f["name"], "kind": f["kind"],
+                          "in_context": bool(f.get("in_context")),
+                          "token_estimate": f.get("token_estimate"),
+                          "description": f.get("description")} for f in files]
+        except Exception:  # noqa: BLE001
+            knowledge = []
+    return {
+        "object": object, "id": id,
+        "data": detail,            # 结构化数据（DB 侧）
+        "relations": relations,    # 关联对象（外键关系）
+        "knowledge": knowledge,    # 关联知识（KB 侧，Entity Hub 对齐）
+        "knowledge_count": len(knowledge),
+    }
 
 
 @router.get("/explain", summary="指标语义上下文：取值 + 口径 + 公式 + 关联知识")
