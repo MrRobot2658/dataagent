@@ -7,7 +7,11 @@
 > **名字含义**：**Agent** —— DeepSeek 驱动的自然语言圈人/查询与 MCP 工具，让 LLM 安全地操作数据平台（候选 DSL 必须过校验层，绝不直出 SQL）；**DataHub** —— 多源数据接入的归一中枢，把小程序/企微/表单/App/批量导入等多渠道数据，实时归一为 OneID 并打宽成统一画像。
 
 **仓库**：https://github.com/MrRobot2658/Quasar
-**在线文档**：[https://quasar-site-gray.vercel.app](https://quasar-site-gray.vercel.app)
+**在线文档**：[https://quasar-site-gray.vercel.app](https://quasar-site-gray.vercel.app) · **本地文档站**：[`docs/site/index.html`](./docs/site/index.html)（多页产品介绍：Quickstart → 各模块 → 语义层 → 场景案例 → FAQ → API，含真实截图）
+
+![Quasar 控制台](./docs/site/assets/shots/02-console.png)
+
+> 控制台为**对话形态**：左侧会话 · 中间智能助手（Ask / Agent 双模式）· 右侧「数据底座」实时概览 + 「知识库」LLM 上下文策展面板。
 
 > 设计文档（均在 [`docs/`](./docs/README.md) 下，按一级目录分模块）：1 平台底座 + 9 业务模块 + 3 扩展菜单（[知识库](./docs/10-knowledge.md) / [应用](./docs/11-apps.md) / [分析](./docs/12-analyst.md)），各含 详细/技术设计 + TODOs。实时链路架构/规模 → [00-platform](./docs/00-platform.md)；ID-Mapping 画像伸缩 / MCP 调用链路 → [02-unify](./docs/02-unify.md)。· [OpenAPI](./swagger/) · [前端说明](./frontend/README.md)
 
@@ -118,8 +122,10 @@
 ### 监控 Monitor（可观测）`Mock`
 投递概览 Delivery（吞吐/成功率/P95/趋势/数据源健康）· 告警 Alerts · 事件日志 Event Delivery。
 
-### 知识库 Knowledge Base `真实`（一级菜单）
+### 知识库 Knowledge Base `真实`（右栏面板 · 卡帕西 LLM 模式）
 云盘式**多模态文件存储**：上传文档/图片/音视频/压缩包（按类型自动归类 + 图片缩略图）；虚拟目录、搜索、类型筛选；文件详情可预览/下载；**可关联到对象**（user/account/order…，上传时或详情页增删关联）。文件字节存盘（`kb_data` 卷），元数据/关联落库。
+
+控制台右栏「知识库」按**卡帕西 LLM 知识库管理模式**组织（**上下文 = RAM、文件 = 磁盘**）：**分域文件夹**承载多模态资料，文档为知识主干；每个文件/整域可一键**策展进/出 LLM 上下文**（持久化 `kb_files.in_context`），顶部**上下文预算条**按 `token_estimate` 实时估算工作记忆占用。接口：`GET /api/kb/files`、`POST /api/kb/files/{fid}/context`。
 
 ### 应用 Apps `真实`（一级菜单）
 **应用市场**：按类别平铺第三方应用，连接/断开状态按租户持久化。默认收录 **CRM**（Salesforce / HubSpot / 销售易）· **广告**（广点通 / 巨量引擎 / 百度营销）· **消息**（短信 / 邮件 / 企业微信 / 钉钉）· **分析**（神策 / GA4）。
