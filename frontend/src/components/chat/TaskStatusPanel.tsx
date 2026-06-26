@@ -3,6 +3,7 @@ import {
   Workflow, RefreshCw, ExternalLink, CheckCircle2, XCircle, Loader2, Clock,
   Database, Layers, Radio, Activity, CalendarClock, ChevronDown, Boxes, LogIn, LogOut,
 } from "lucide-react";
+import KnowledgePanel from "./KnowledgePanel";
 import { getSchedulerRuns, type DagRun, type SchedulerRuns } from "../../api/scheduler";
 import { getInfraStats, type InfraStats, type ObjectStat, type AppStat } from "../../api/platform";
 import { useLang } from "../../context/LangContext";
@@ -179,6 +180,9 @@ export default function TaskStatusPanel() {
             </div>
           );
         })}
+
+        {/* 知识库（卡帕西 LLM 知识库模式：分域文件夹 + 上下文策展） */}
+        <KnowledgePanel />
       </div>
     </aside>
   );

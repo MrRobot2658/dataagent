@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pymysql
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 
 from executor import MysqlOlapExecutor
@@ -35,6 +35,20 @@ def _kind_of(mime: str, name: str) -> str:
     if ext in ("zip", "tar", "gz", "rar", "7z"):
         return "archive"
     return "other"
+
+
+def _estimate_tokens(kind: str, size_bytes: int) -> int:
+    """粗略估算文件纳入 LLM 上下文的 token 占用。
+    文档=正文 ~4 bytes/token；音视频=转写摘要估算；图片=描述估算。"""
+    if kind == "document":
+        return max(50, size_bytes // 4)
+    if kind == "audio":
+        return max(100, size_bytes // 2000)   # 语音转写
+    if kind == "video":
+        return max(200, size_bytes // 4000)   # 字幕/转写
+    if kind == "image":
+        return 300                            # 图像描述
+    return max(20, size_bytes // 8)
 
 
 class KbService:
@@ -79,12 +93,13 @@ class KbService:
         path.write_bytes(data)
         kind = _kind_of(mime, name)
         folder = folder or "/"
+        tokens = _estimate_tokens(kind, len(data))
         with self._conn() as conn, conn.cursor() as cur:
             cur.execute(
                 """INSERT INTO kb_files (id, tenant_id, name, folder, mime_type, kind,
-                       size_bytes, storage_path, description)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                (fid, tenant_id, name, folder, mime, kind, len(data), rel, description),
+                       size_bytes, storage_path, description, token_estimate)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (fid, tenant_id, name, folder, mime, kind, len(data), rel, description, tokens),
             )
             if object_type:
                 cur.execute(
@@ -95,7 +110,8 @@ class KbService:
 
     def list_files(self, tenant_id: int, folder: str | None, object_type: str | None,
                    object_id: str | None, q: str | None, kind: str | None) -> list[dict]:
-        sql = ["SELECT f.id, f.name, f.folder, f.mime_type, f.kind, f.size_bytes, f.description, f.created_at",
+        sql = ["SELECT f.id, f.name, f.folder, f.mime_type, f.kind, f.size_bytes, f.description, f.created_at,",
+               "f.token_estimate, f.in_context",
                "FROM kb_files f"]
         params: list = []
         where = ["f.tenant_id=%s"]
@@ -124,7 +140,18 @@ class KbService:
         for r in rows:
             r["links"] = links.get(r["id"], [])
             r["created_at"] = str(r["created_at"]) if r.get("created_at") else None
+            r["in_context"] = bool(r.get("in_context"))
         return rows
+
+    def set_context(self, tenant_id: int, fid: str, in_context: bool) -> dict:
+        with self._conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                "UPDATE kb_files SET in_context=%s WHERE tenant_id=%s AND id=%s",
+                (1 if in_context else 0, tenant_id, fid),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="文件不存在")
+        return {"id": fid, "in_context": in_context}
 
     def folders(self, tenant_id: int) -> list[str]:
         with self._conn() as conn, conn.cursor() as cur:
@@ -195,6 +222,12 @@ def list_files(tenant_id: int = Query(...), folder: str | None = None,
 @router.get("/folders")
 def list_folders(tenant_id: int = Query(...)):
     return {"folders": service.folders(tenant_id)}
+
+
+@router.post("/files/{fid}/context")
+def set_file_context(fid: str, tenant_id: int = Body(...), in_context: bool = Body(...)):
+    """策展：把文件纳入/移出 LLM 上下文（卡帕西模式：上下文=工作记忆/RAM）。"""
+    return service.set_context(tenant_id, fid, in_context)
 
 
 @router.get("/files/{fid}")
