@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { X, Brain, Boxes, Plug, Gauge, Check } from "lucide-react";
+import { X, Brain, Boxes, Plug, Gauge, Check, Database, Library, Radio, CalendarClock } from "lucide-react";
 import { getMcpTools, getAgents, type McpToolsResponse, type AgentDef } from "../../api/assistant";
 import { getMemory, setMemory, getDisabledSkills, toggleSkill, getUsage, resetSessionUsage, type Usage } from "../../lib/prefs";
 import { useLang } from "../../context/LangContext";
+import TaskStatusPanel from "./TaskStatusPanel";
+import KnowledgePanel from "./KnowledgePanel";
+import QueuePanel from "./QueuePanel";
+import TasksPanel from "./TasksPanel";
 
-type Tab = "memory" | "skills" | "mcp" | "usage";
+type Tab = "data" | "queue" | "tasks" | "kb" | "memory" | "skills" | "mcp" | "usage";
 
 export default function SettingsPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { tr } = useLang();
-  const [tab, setTab] = useState<Tab>("memory");
+  const [tab, setTab] = useState<Tab>("data");
 
   // 记忆
   const [memory, setMem] = useState("");
@@ -44,6 +48,10 @@ export default function SettingsPanel({ open, onClose }: { open: boolean; onClos
   }
 
   const tabs: { key: Tab; label: string; icon: typeof Brain }[] = [
+    { key: "data", label: tr("数据源", "Data sources"), icon: Database },
+    { key: "queue", label: tr("队列", "Queues"), icon: Radio },
+    { key: "tasks", label: tr("任务", "Tasks"), icon: CalendarClock },
+    { key: "kb", label: tr("知识库", "Knowledge"), icon: Library },
     { key: "memory", label: tr("记忆", "Memory"), icon: Brain },
     { key: "skills", label: tr("技能", "Skills"), icon: Boxes },
     { key: "mcp", label: tr("MCP", "MCP"), icon: Plug },
@@ -72,6 +80,11 @@ export default function SettingsPanel({ open, onClose }: { open: boolean; onClos
             <button type="button" onClick={onClose} className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
+            {tab === "data" && <TaskStatusPanel />}
+            {tab === "queue" && <QueuePanel />}
+            {tab === "tasks" && <TasksPanel />}
+            {tab === "kb" && <KnowledgePanel />}
+
             {tab === "memory" && (
               <div className="space-y-3">
                 <p className="text-[12px] text-gray-500">{tr("长期记忆会作为系统上下文注入每次对话（如：偏好、口径、常用租户）。", "Long-term memory is injected as system context into every chat (preferences, definitions, default tenant…).")}</p>

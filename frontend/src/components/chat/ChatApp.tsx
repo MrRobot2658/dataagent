@@ -7,7 +7,6 @@ import {
 import { Spinner } from "../ui";
 import Markdown from "../assistant/Markdown";
 import ViewCard from "./cards/ViewCard";
-import TaskStatusPanel from "./TaskStatusPanel";
 import SettingsPanel from "./SettingsPanel";
 import WelcomeGreeting from "./WelcomeGreeting";
 import DashboardModal from "./DashboardModal";
@@ -225,43 +224,51 @@ export default function ChatApp() {
             </button>
           ))}
         </div>
-        {/* 底部：租户 / 语言 / 用户 */}
+        {/* 底部：设置（记忆 / 技能 / MCP / 数据源 / 知识库 / Token）*/}
         <div className="border-t border-gray-200 p-3">
-          <div className="mb-2 flex items-center gap-1.5">
-            <div className="relative flex-1">
-              <select
-                value={tenant}
-                onChange={(e) => setTenant(Number(e.target.value))}
-                className="w-full appearance-none rounded-md border border-gray-200 bg-white py-1 pl-2 pr-6 text-[12px] font-medium text-gray-600 focus:border-brand-400 focus:outline-none"
-                title="Workspace"
-              >
-                {tenants.map((tid) => <option key={tid} value={tid}>{tr("租户", "Tenant")} {tid}</option>)}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-            </div>
-            <div className="flex items-center rounded-md border border-gray-200 p-0.5">
-              {langOpts.map((o) => (
-                <button key={o.key} type="button" onClick={() => setLang(o.key)}
-                  className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${lang === o.key ? "bg-brand-50 text-brand-700" : "text-gray-400 hover:text-gray-700"}`}>
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">{initial}</div>
-            <span className="flex-1 truncate text-[12px] text-gray-600">{user?.name || user?.email}</span>
-            <button type="button" onClick={() => { logout(); location.href = "/login"; }} className="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" title={tr("退出登录", "Log out")}>
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-          {/* 设置（记忆 / 技能 / MCP / Token 消耗）—— 放在管理员下面 */}
           <button type="button" onClick={() => setSettingsOpen(true)}
-            className="mt-2 flex w-full items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-[13px] font-medium text-gray-600 hover:border-brand-300 hover:bg-brand-50">
+            className="flex w-full items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-[13px] font-medium text-gray-600 hover:border-brand-300 hover:bg-brand-50">
             <Settings className="h-4 w-4" /> {tr("设置", "Settings")}
           </button>
         </div>
       </aside>
+
+      {/* 右列：TailAdmin 顶栏 + 对话主区 */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* 顶栏：左=管理员登录信息，右=租户 logo + 语言 */}
+        <header className="flex items-center gap-3 border-b border-gray-200 bg-white px-5 py-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">{initial}</div>
+            <div className="leading-tight">
+              <div className="text-[13px] font-semibold text-gray-900">{user?.name || tr("管理员", "Admin")}</div>
+              <div className="text-[11px] text-gray-400">{user?.email}</div>
+            </div>
+            <button type="button" onClick={() => { logout(); location.href = "/login"; }}
+              className="ml-1 rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" title={tr("退出登录", "Log out")}>
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center rounded-md border border-gray-200 p-0.5">
+            {langOpts.map((o) => (
+              <button key={o.key} type="button" onClick={() => setLang(o.key)}
+                className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${lang === o.key ? "bg-brand-50 text-brand-700" : "text-gray-400 hover:text-gray-700"}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          {/* 租户 logo（右上角）*/}
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-brand-500 to-indigo-500 text-[12px] font-bold text-white">{String(tenant).slice(0, 2)}</div>
+            <div className="relative">
+              <select value={tenant} onChange={(e) => setTenant(Number(e.target.value))}
+                className="appearance-none bg-transparent pr-5 text-[12px] font-semibold text-gray-700 focus:outline-none" title="Workspace">
+                {tenants.map((tid) => <option key={tid} value={tid}>{tr("租户", "Tenant")} {tid}</option>)}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            </div>
+          </div>
+        </header>
 
       {/* 对话主区 */}
       <main className="flex min-w-0 flex-1 flex-col">
@@ -376,11 +383,9 @@ export default function ChatApp() {
           </div>
         </div>
       </main>
+      </div>
 
-      {/* 右侧：数据底座概览 + Airflow 任务 */}
-      <TaskStatusPanel />
-
-      {/* 设置弹层（由左侧菜单「管理员」下方的按钮触发）*/}
+      {/* 设置弹层（含 数据源 / 知识库 / 记忆 / 技能 / MCP / Token）*/}
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* 看板查看器：NL 生成/「打开看板」时打开（对话形态无独立分析页）*/}
